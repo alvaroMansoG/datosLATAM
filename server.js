@@ -407,6 +407,7 @@ function buildAggregateIndicator(def, byIso, extra = {}) {
   const entries = getEntriesWithValue(byIso);
   return {
     ...def,
+    isRegionAggregate: true,
     value: extra.value ?? null,
     date: extra.date ?? deriveAggregateYear(entries),
     source: extra.source || entries[0]?.source || def.source || 'Banco Mundial',
@@ -419,13 +420,14 @@ function buildRegionalAggregateIndicators(regionDataByKey, hdiRegionData) {
   const populationEntries = getEntriesWithValue(regionDataByKey.population?.byIso);
   const laborForceEntries = getEntriesWithValue(regionDataByKey.laborForce?.byIso);
   const gdpEntries = getEntriesWithValue(regionDataByKey.gdpTotal?.byIso);
-  const hdiEntries = getEntriesWithValue(hdiRegionData?.byIso);
 
   const populationTotal = sumEntries(populationEntries);
   const laborForceTotal = sumEntries(laborForceEntries);
   const gdpTotal = sumEntries(gdpEntries);
 
+  const populationWeights = Object.fromEntries(populationEntries.map((entry) => [entry.iso, entry.value]));
   const laborForceWeights = Object.fromEntries(laborForceEntries.map((entry) => [entry.iso, entry.value]));
+  const gdpWeights = Object.fromEntries(gdpEntries.map((entry) => [entry.iso, entry.value]));
 
   const aggregateStrategies = {
     population: () => buildAggregateIndicator(INDICATORS.population, regionDataByKey.population.byIso, { value: populationTotal }),
@@ -439,50 +441,51 @@ function buildRegionalAggregateIndicators(regionDataByKey, hdiRegionData) {
       date: deriveAggregateYear([...populationEntries, ...gdpEntries]),
     }),
     gdpGrowth: () => buildAggregateIndicator(INDICATORS.gdpGrowth, regionDataByKey.gdpGrowth.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.gdpGrowth?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.gdpGrowth?.byIso), gdpWeights),
     }),
     hdi: () => buildAggregateIndicator(INDICATORS.hdi, hdiRegionData.byIso, {
-      value: averageEntries(hdiEntries),
-      source: hdiEntries[0]?.source || 'PNUD API',
+      value: 0.783,
+      date: '2023',
+      source: 'PNUD HDR 2025',
     }),
     gini: () => buildAggregateIndicator(INDICATORS.gini, regionDataByKey.gini.byIso, {
       value: averageEntries(getEntriesWithValue(regionDataByKey.gini?.byIso)),
     }),
     internetUsers: () => buildAggregateIndicator(INDICATORS.internetUsers, regionDataByKey.internetUsers.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.internetUsers?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.internetUsers?.byIso), populationWeights),
     }),
     householdInternet: () => buildAggregateIndicator(INDICATORS.householdInternet, regionDataByKey.householdInternet.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.householdInternet?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.householdInternet?.byIso), populationWeights),
     }),
     mobileSubs: () => buildAggregateIndicator(INDICATORS.mobileSubs, regionDataByKey.mobileSubs.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.mobileSubs?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.mobileSubs?.byIso), populationWeights),
     }),
     broadband: () => buildAggregateIndicator(INDICATORS.broadband, regionDataByKey.broadband.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.broadband?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.broadband?.byIso), populationWeights),
     }),
     coverage5g: () => buildAggregateIndicator(INDICATORS.coverage5g, regionDataByKey.coverage5g.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.coverage5g?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.coverage5g?.byIso), populationWeights),
     }),
     coverage4g: () => buildAggregateIndicator(INDICATORS.coverage4g, regionDataByKey.coverage4g.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.coverage4g?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.coverage4g?.byIso), populationWeights),
     }),
     coverage3g: () => buildAggregateIndicator(INDICATORS.coverage3g, regionDataByKey.coverage3g.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.coverage3g?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.coverage3g?.byIso), populationWeights),
     }),
     findexBuy: () => buildAggregateIndicator(INDICATORS.findexBuy, regionDataByKey.findexBuy.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.findexBuy?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.findexBuy?.byIso), populationWeights),
     }),
     findexPayOnline: () => buildAggregateIndicator(INDICATORS.findexPayOnline, regionDataByKey.findexPayOnline.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.findexPayOnline?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.findexPayOnline?.byIso), populationWeights),
     }),
     findexBalance: () => buildAggregateIndicator(INDICATORS.findexBalance, regionDataByKey.findexBalance.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.findexBalance?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.findexBalance?.byIso), populationWeights),
     }),
     findexMadePay: () => buildAggregateIndicator(INDICATORS.findexMadePay, regionDataByKey.findexMadePay.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.findexMadePay?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.findexMadePay?.byIso), populationWeights),
     }),
     findexRecvPay: () => buildAggregateIndicator(INDICATORS.findexRecvPay, regionDataByKey.findexRecvPay.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.findexRecvPay?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.findexRecvPay?.byIso), populationWeights),
     }),
     digitalServicesExports: () => buildAggregateIndicator(INDICATORS.digitalServicesExports, regionDataByKey.digitalServicesExports.byIso, {
       value: sumEntries(getEntriesWithValue(regionDataByKey.digitalServicesExports?.byIso)),
@@ -491,7 +494,7 @@ function buildRegionalAggregateIndicators(regionDataByKey, hdiRegionData) {
       value: sumEntries(getEntriesWithValue(regionDataByKey.ictPatents?.byIso)),
     }),
     stemGraduates: () => buildAggregateIndicator(INDICATORS.stemGraduates, regionDataByKey.stemGraduates.byIso, {
-      value: averageEntries(getEntriesWithValue(regionDataByKey.stemGraduates?.byIso)),
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.stemGraduates?.byIso), populationWeights),
     }),
   };
 
@@ -504,6 +507,7 @@ function buildRegionalGovData() {
   const avgGtmiGroup = 'ALC';
   const avgGciTier = getGciTier(ALC_GOV_STATS.gciAvg);
   return {
+    isRegionAggregate: true,
     egdi: {
       score: ALC_GOV_STATS.egdiAvg,
       group: getEgdiGroup(ALC_GOV_STATS.egdiAvg),
@@ -1015,6 +1019,8 @@ app.use(express.static(path.join(__dirname, 'public'), {
     }
   }
 }));
+
+app.use('/img', express.static(path.join(__dirname, 'img')));
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor activo en http://localhost:${PORT}`);

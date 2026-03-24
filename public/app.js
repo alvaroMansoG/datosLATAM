@@ -38,6 +38,11 @@ const mapRegionTrigger  = $('#map-region-trigger');
 const basicLinks        = $('#basic-links');
 const connectivityLinks = $('#connectivity-links');
 const findexLinks       = $('#findex-links');
+const basicMethodNote   = $('#basic-method-note');
+const connectivityMethodNote = $('#connectivity-method-note');
+const findexMethodNote  = $('#findex-method-note');
+const govMethodNote     = $('#gov-method-note');
+const dimensionsMethodNote = $('#dimensions-method-note');
 
 // State
 let countries = [];
@@ -54,6 +59,40 @@ const REGION_OPTION = {
   iso3: REGION_AGGREGATE_ISO,
   name: 'Am\u00E9rica Latina y el Caribe',
   isRegionAggregate: true,
+};
+
+const REGION_SECTION_NOTES = {
+  basic: 'Nota metodol\u00F3gica: suma para totales, promedio ponderado para desempleo y promedio simple para Gini. El IDH usa el dato oficial del PNUD para ALC.',
+  connectivity: 'Nota metodol\u00F3gica: promedios ponderados por poblaci\u00F3n para todos los indicadores de conectividad.',
+  findex: 'Nota metodol\u00F3gica: suma para exportaciones digitales y patentes TIC; promedio ponderado por poblaci\u00F3n para Findex y STEM.',
+  gov: 'Nota metodol\u00F3gica: se muestran promedios regionales de los \u00EDndices y sub\u00EDndices disponibles para los 26 pa\u00EDses.',
+  dimensions: 'Nota metodol\u00F3gica: cada dimensi\u00F3n muestra el promedio regional del sub\u00EDndice correspondiente.',
+};
+
+const REGION_METHOD_TOOLTIPS = {
+  'SP.POP.TOTL': 'Agregado regional calculado como la suma de la poblaci\u00F3n de los 26 pa\u00EDses de ALC.',
+  'SL.TLF.TOTL.IN': 'Agregado regional calculado como la suma de la fuerza laboral total de los 26 pa\u00EDses de ALC.',
+  'SL.UEM.TOTL.ZS': 'Agregado regional calculado como promedio ponderado por la fuerza laboral de cada pa\u00EDs.',
+  'NY.GDP.MKTP.CD': 'Agregado regional calculado como la suma del PIB nominal de los 26 pa\u00EDses de ALC.',
+  'NY.GDP.PCAP.CD': 'Agregado regional calculado como PIB nominal total de ALC dividido entre la poblaci\u00F3n total de ALC.',
+  'NY.GDP.MKTP.KD.ZG': 'Agregado regional calculado como promedio ponderado por el PIB nominal de cada pa\u00EDs.',
+  'UNDP.HDI': 'Dato oficial del PNUD para Am\u00E9rica Latina y el Caribe publicado en el anexo estad\u00EDstico del HDR 2025: 0,783 para 2023.',
+  'SI.POV.GINI': 'Promedio simple de los \u00EDndices de Gini nacionales disponibles. No equivale al Gini regional real.',
+  'ITU_DH_INT_USER_PT': 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  'ITU_DH_HH_INT': 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  'ITU_DH_MOB_SUB_PER_100': 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  'IT.NET.BBND.P2': 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  'ITU_DH_POP_COV_5G': 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  'ITU_DH_POP_COV_4G': 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  'ITU_DH_POP_COV_3G': 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  FIN26B: 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  FIN27A: 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  FIN9B: 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  'g20.made': 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  'g20.received': 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
+  'UNCTAD_DE_DIG_SERVTRADE_ANN_EXP': 'Agregado regional calculado como la suma de las exportaciones de servicios digitales de los pa\u00EDses con dato disponible.',
+  'WIPO_ICT_PAT_PUB_TOT': 'Agregado regional calculado como la suma de las publicaciones de patentes TIC de los pa\u00EDses con dato disponible.',
+  'UNESCO_UIS_GRAD_STEM': 'Agregado regional calculado como promedio ponderado por poblaci\u00F3n.',
 };
 
 let numericToIso = {};
@@ -150,6 +189,8 @@ const INDICATOR_TOOLTIPS = {
   'WIPO_ICT_PAT_PUB_TOT': 'N\u00FAmero total de publicaciones de patentes relacionadas con tecnolog\u00EDas de la informaci\u00F3n y la comunicaci\u00F3n.',
   'UNESCO_UIS_GRAD_STEM': 'Porcentaje de graduados de educaci\u00F3n terciaria provenientes de programas STEM.',
 };
+
+INDICATOR_TOOLTIPS['SI.POV.GINI'] = 'Mide cu\u00E1nto se desv\u00EDa la distribuci\u00F3n del ingreso o del consumo de la igualdad perfecta. Un valor de 0 representa igualdad total y 100 desigualdad total. Para el agregado ALC se muestra un promedio simple de \u00EDndices nacionales; no equivale al Gini regional real.';
 
 function fixText(value) {
   if (typeof value !== 'string') return value;
@@ -528,16 +569,20 @@ function buildMetaItemHtml(label, displayHtml, metaIndicator, extraClass = '') {
   const tooltip = getIndicatorTooltip(metaIndicator);
   const { hasRegionalRank, medal, rankBadge, rankTooltip } = getRankMeta(metaIndicator);
   const hasData = displayHtml && displayHtml !== '--';
+  const hideRegionalRank = Boolean(metaIndicator?.isRegionAggregate);
+  const rankHtml = hideRegionalRank
+    ? ''
+    : `<span class="card-meta-rank ${hasRegionalRank ? '' : 'no-data'} ${medal ? medal.className : ''}" title="${escapeHtmlAttr(rankTooltip)}" aria-label="${escapeHtmlAttr(rankTooltip)}">
+          ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
+          <span>${rankBadge}</span>
+        </span>`;
 
   return `
-    <span class="card-meta-row ${hasData ? '' : 'no-data'} ${extraClass}" title="${escapeHtmlAttr(tooltip)}" aria-label="${escapeHtmlAttr(tooltip)}">
-      <span class="card-meta-rank ${hasRegionalRank ? '' : 'no-data'} ${medal ? medal.className : ''}" title="${escapeHtmlAttr(rankTooltip)}" aria-label="${escapeHtmlAttr(rankTooltip)}">
-        ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
-        <span>${rankBadge}</span>
+      <span class="card-meta-row ${hasData ? '' : 'no-data'} ${extraClass}" title="${escapeHtmlAttr(tooltip)}" aria-label="${escapeHtmlAttr(tooltip)}">
+        ${rankHtml}
+        <span class="card-meta-copy">${label}: ${displayHtml || '--'}</span>
       </span>
-      <span class="card-meta-copy">${label}: ${displayHtml || '--'}</span>
-    </span>
-  `;
+    `;
 }
 
 function formatValue(value, format) {
@@ -575,6 +620,7 @@ function createCard(indicator, country, allIndicators = {}) {
   const card = document.createElement('div');
   card.className = 'card';
   const showCardSources = indicator.category !== 'basic';
+  const hideRegionalRank = Boolean(country?.isRegionAggregate);
   const customTitleMap = {
     'SP.POP.TOTL': 'Demograf\u00EDa, mercado laboral y desarrollo',
     'NY.GDP.MKTP.CD': 'Econom\u00EDa',
@@ -687,6 +733,12 @@ function createCard(indicator, country, allIndicators = {}) {
   
   const sourceMetas = collectSourceMetas([indicator, ...embeddedIndicators], country);
   const { hasRegionalRank, medal, rankBadge, rankTooltip } = getRankMeta(indicator);
+  const mainRankHtml = hideRegionalRank
+    ? ''
+    : `<span class="card-alc-badge ${hasRegionalRank ? '' : 'no-data'} ${medal ? medal.className : ''}" title="${escapeHtmlAttr(rankTooltip)}" aria-label="${escapeHtmlAttr(rankTooltip)}">
+            ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
+            <span>${rankBadge}</span>
+          </span>`;
 
   if (showCardSources && sourceMetas.length > 1) {
     card.classList.add('card-with-source-group');
@@ -694,17 +746,14 @@ function createCard(indicator, country, allIndicators = {}) {
 
   card.innerHTML = `
     <div class="card-badge">${INDICATOR_ICONS[indicator.code] || fixText(indicator.icon) || ''}</div>
-    <div class="card-content">
-      <span class="card-label" title="${escapeHtmlAttr(mainTooltip)}" aria-label="${escapeHtmlAttr(mainTooltip)}">${cardTitle}</span>
-      <div class="card-main-row">
-        <span class="card-alc-badge ${hasRegionalRank ? '' : 'no-data'} ${medal ? medal.className : ''}" title="${rankTooltip}" aria-label="${rankTooltip}">
-          ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
-          <span>${rankBadge}</span>
-        </span>
-        <div class="card-main-copy">
-          ${mainValueHtml}
+      <div class="card-content">
+        <span class="card-label" title="${escapeHtmlAttr(mainTooltip)}" aria-label="${escapeHtmlAttr(mainTooltip)}">${cardTitle}</span>
+        <div class="card-main-row">
+          ${mainRankHtml}
+          <div class="card-main-copy">
+            ${mainValueHtml}
+          </div>
         </div>
-      </div>
       ${extraMetaHtml}
       ${!showCardSources ? ''
         : sourceMetas.length === 1
@@ -723,6 +772,7 @@ function createCard(indicator, country, allIndicators = {}) {
 function createCompoundCard({ title, icon, metrics, country, showSources = true, theme = { bg: '#dbedf8', ink: '#35749b', border: '#b7dbf2' } }) {
   const card = document.createElement('div');
   card.className = 'card card-compound';
+  const hideRegionalRank = Boolean(country?.isRegionAggregate);
   card.style.setProperty('--badge-bg', theme.bg);
   card.style.setProperty('--badge-ink', theme.ink);
   card.style.setProperty('--badge-border', theme.border);
@@ -733,13 +783,16 @@ function createCompoundCard({ title, icon, metrics, country, showSources = true,
     const { hasRegionalRank, medal, rankBadge, rankTooltip } = getRankMeta(indicator);
     const metricTooltip = getIndicatorTooltip(indicator);
     const metricText = formatValueWithYearHtml(displayValue, indicator.date);
+    const metricRankHtml = hideRegionalRank
+      ? ''
+      : `<span class="card-mini-rank ${hasRegionalRank ? '' : 'no-data'} ${medal ? medal.className : ''}" title="${escapeHtmlAttr(rankTooltip)}" aria-label="${escapeHtmlAttr(rankTooltip)}">
+            ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
+            <span>${rankBadge}</span>
+          </span>`;
 
-    return `
-      <div class="card-metric-row" title="${escapeHtmlAttr(metricTooltip)}" aria-label="${escapeHtmlAttr(metricTooltip)}">
-        <span class="card-mini-rank ${hasRegionalRank ? '' : 'no-data'} ${medal ? medal.className : ''}" title="${rankTooltip}" aria-label="${rankTooltip}">
-          ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
-          <span>${rankBadge}</span>
-        </span>
+      return `
+        <div class="card-metric-row" title="${escapeHtmlAttr(metricTooltip)}" aria-label="${escapeHtmlAttr(metricTooltip)}">
+        ${metricRankHtml}
         <div class="card-metric-copy">
           <span class="card-metric-label">${fixText(indicator.label)}</span>
           <span class="card-metric-value ${hasData ? '' : 'no-data'}">${hasData ? metricText : '--'}</span>
@@ -943,39 +996,138 @@ function buildPositionBar(scores, currentIso, countryName, alcAvg, allNames, isC
 }
 
 // ─── Rich E-Government index card ─────────────────────
+function getGovOrgBadge(clsKey, org) {
+  const map = {
+    egdi: 'ONU',
+    gtmi: 'BM',
+    gci: 'ITU',
+    ocde: 'BID',
+    ai: 'OI',
+  };
+  return map[clsKey] || org;
+}
+
+function getGovOrgTooltip(clsKey, org) {
+  const map = {
+    egdi: 'Índice elaborado por Naciones Unidas.',
+    gtmi: 'Índice elaborado por el Banco Mundial.',
+    gci: 'Índice elaborado por la Unión Internacional de Telecomunicaciones.',
+    ocde: 'Índice de referencia BID/OCDE para gobierno digital.',
+    ai: 'Índice elaborado por Oxford Insights.',
+  };
+  return map[clsKey] || `Índice elaborado por ${org}.`;
+}
+
+function getGovGroupLabel(clsKey, value) {
+  if (!value) return '\u2014';
+  if (clsKey === 'egdi') {
+    const map = { VHEGDI: 'Muy alto', HEGDI: 'Alto', MEGDI: 'Medio', LEGDI: 'Bajo' };
+    return map[value] || value;
+  }
+  if (clsKey === 'gtmi') {
+    const text = String(value);
+    return text.includes('·') ? text.split('·')[0].trim() : text;
+  }
+  if (clsKey === 'gci') {
+    const text = String(value);
+    return text.includes('·') ? text.split('·')[0].trim() : text;
+  }
+  return value;
+}
+
+function getGovGroupTooltip(clsKey, value) {
+  if (!value) return 'No hay grupo disponible para este índice.';
+  if (clsKey === 'egdi') {
+    return 'Clasificación EGDI: VHEGDI = Muy alto, HEGDI = Alto, MEGDI = Medio, LEGDI = Bajo.';
+  }
+  if (clsKey === 'gtmi') {
+    return `Clasificación GTMI reportada por el Banco Mundial: ${value}.`;
+  }
+  if (clsKey === 'gci') {
+    return `Categoría del GCI: ${value}.`;
+  }
+  return `Clasificación reportada por el índice: ${value}.`;
+}
+
+function formatGovRank(rank, withMedal = false) {
+  if (rank == null) return '\u2014';
+  const medals = { 1: '\uD83E\uDD47', 2: '\uD83E\uDD48', 3: '\uD83E\uDD49' };
+  return withMedal && medals[rank] ? `${medals[rank]} #${rank}` : `#${rank}`;
+}
+
+function getGovHeaderRows({ clsKey, groupLabelText, rankWorldText, rankAlcText }) {
+  if (clsKey === 'ocde') {
+    return [
+      {
+        label: 'Ranking BID',
+        value: rankAlcText,
+        kind: 'rank',
+        tooltip: 'Posición del país dentro del índice BID/OCDE para América Latina y el Caribe.',
+      },
+    ];
+  }
+
+  return [
+    {
+      label: 'Grupo',
+      value: groupLabelText,
+      kind: 'group',
+      tooltip: getGovGroupTooltip(clsKey, groupLabelText),
+    },
+    {
+      label: 'Ranking mundial',
+      value: rankWorldText,
+      kind: 'rank',
+      tooltip: 'Posición del país en el ranking mundial del índice.',
+    },
+    {
+      label: 'Ranking ALC',
+      value: rankAlcText,
+      kind: 'rank',
+      tooltip: 'Posición del país dentro de América Latina y el Caribe. Los puestos 1, 2 y 3 muestran medalla.',
+    },
+  ];
+}
+
 function buildGovCard({ clsKey, org, name, year, scoreDisplay, group, groupLabel,
     rankWorld, rankALC, alcAvg, diffVsAlc, allAlc, allNames, countryName, countryIso, isCategory }) {
   const diffClass = diffVsAlc >= 0 ? 'gov-diff-positive' : 'gov-diff-negative';
   const diffStr   = diffVsAlc != null ? `${diffVsAlc >= 0 ? '+' : ''}${formatLocaleNumber(Math.abs(diffVsAlc), 2, false)}` : '\u2014';
+  const govTooltip = getGovMethodTooltip(clsKey, countryIso);
+  const groupLabelText = getGovGroupLabel(clsKey, groupLabel || group);
+  const rankWorldText = formatGovRank(rankWorld, false);
+  const rankAlcText = formatGovRank(rankALC, true);
+  const headerRows = getGovHeaderRows({ clsKey, groupLabelText, rankWorldText, rankAlcText });
+  const orgBadge = getGovOrgBadge(clsKey, org);
 
   const card = document.createElement('div');
   card.className = 'gov-card';
   card.innerHTML = `
     <div class="gov-card-header ${clsKey}">
-      <div class="gov-card-score">${scoreDisplay}</div>
-      <div class="gov-card-title-wrap">
+      <div class="gov-card-title-area">
+        <div class="gov-card-org-logo ${clsKey}" title="${escapeHtmlAttr(getGovOrgTooltip(clsKey, org))}" aria-label="${escapeHtmlAttr(getGovOrgTooltip(clsKey, org))}">${orgBadge}</div>
+        <div class="gov-card-title-wrap">
         <div class="gov-card-org">${org}</div>
         <div class="gov-card-name">${name}</div>
         <div class="gov-card-year">${year}</div>
+        </div>
+      </div>
+      <div class="gov-card-header-meta">
+        ${headerRows.map((row) => `
+          <div class="gov-card-header-item" title="${escapeHtmlAttr(row.tooltip)}" aria-label="${escapeHtmlAttr(row.tooltip)}">
+            <span class="gov-card-header-label">${row.label}</span>
+            <span class="${row.kind === 'group' ? `gov-group-badge ${clsKey}` : 'gov-card-header-val'}">${row.value}</span>
+          </div>
+        `).join('')}
       </div>
     </div>
     <div class="gov-card-body">
-      <div class="gov-card-rows">
-        <span class="gov-card-row-label">Grupo ${org.split(' ')[0]}</span>
-        <span></span>
-        <span class="gov-group-badge">${group || '\u2014'}</span>
-
-        <span class="gov-card-row-label">Ranking mundial</span>
-        <span></span>
-        <span class="gov-card-row-val">${rankWorld != null ? `#${rankWorld}` : '\u2014'}</span>
-
-        <span class="gov-card-row-label">Ranking ALC</span>
-        <span></span>
-        <span class="gov-card-row-val">${rankALC != null ? `#${rankALC}` : '\u2014'}</span>
-
-        <span class="gov-card-row-label">Dif. vs media ALC</span>
-        <span></span>
-        <span class="${diffClass}">${diffStr}</span>
+      <div class="gov-card-score-panel" title="${escapeHtmlAttr(govTooltip)}" aria-label="${escapeHtmlAttr(govTooltip)}">
+        <div class="gov-card-score-value ${clsKey}">${scoreDisplay}</div>
+        <div class="gov-card-score-diff">
+          <span class="gov-card-score-diff-label">Dif. vs media ALC</span>
+          <span class="${diffClass}">${diffStr}</span>
+        </div>
       </div>
     </div>
   `;
@@ -1197,6 +1349,7 @@ function renderDimensionsSection(govData, countryName, allNamesMap) {
       const sc = db.score ?? 0;
       const av = db.alcAvg ?? 0;
       const diff = db.score != null ? (sc - av) : null;
+      const dimTooltip = getDimensionMethodTooltip(tabKey, govData?.isRegionAggregate);
       let diffStr = '\u2014';
       if (diff != null) {
         // e.g., +0,141 -> Format slightly differently from global numbers if needed 
@@ -1212,7 +1365,7 @@ function renderDimensionsSection(govData, countryName, allNamesMap) {
       const color = DIM_COLORS[idx % DIM_COLORS.length];
 
       listHtml += `
-        <div class="dim-row">
+        <div class="dim-row" title="${escapeHtmlAttr(dimTooltip)}" aria-label="${escapeHtmlAttr(dimTooltip)}">
           <div class="dim-row-header">
             <div class="dim-row-title" style="color: ${color}">
               <span class="dim-dot">\u25CF</span> ${idx+1} ${SUB_LABELS[k].split(' (')[0]} <span class="dim-row-title-acc">(${k.toUpperCase()})</span>
@@ -1356,6 +1509,7 @@ async function loadCountry(iso) {
     renderCountryInfo(data.country);
     renderBanner(data.country);
     renderIndicators(data);
+    updateRegionalMethodNotes(data.country);
     // Add ALC name map for tooltips
     const allNamesMap = {};
     if (countries) { // Assuming 'countries' is the global list of all ALC countries
@@ -1705,6 +1859,60 @@ async function init() {
   });
 
   await initMap();
+  await loadCountry(REGION_AGGREGATE_ISO);
+}
+
+function getIndicatorTooltip(indicator) {
+  if (indicator?.isRegionAggregate && REGION_METHOD_TOOLTIPS[indicator.code]) {
+    return REGION_METHOD_TOOLTIPS[indicator.code];
+  }
+  return INDICATOR_TOOLTIPS[indicator.code] || fixText(indicator.label) || 'Indicador sin descripci\u00F3n disponible.';
+}
+
+function updateRegionalMethodNotes(country) {
+  const isRegionAggregate = Boolean(country?.isRegionAggregate);
+  const entries = [
+    [basicMethodNote, REGION_SECTION_NOTES.basic],
+    [connectivityMethodNote, REGION_SECTION_NOTES.connectivity],
+    [findexMethodNote, REGION_SECTION_NOTES.findex],
+    [govMethodNote, REGION_SECTION_NOTES.gov],
+    [dimensionsMethodNote, REGION_SECTION_NOTES.dimensions],
+  ];
+
+  entries.forEach(([el, text]) => {
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle('hidden', !isRegionAggregate);
+  });
+}
+
+function getGovMethodTooltip(clsKey, countryIso) {
+  if (countryIso !== REGION_AGGREGATE_ISO) return 'Indicador compuesto de referencia internacional para gobierno digital.';
+
+  const map = {
+    egdi: 'Promedio regional del EGDI de los 26 pa\u00EDses de ALC. Los sub\u00EDndices tambi\u00E9n se muestran como promedios regionales.',
+    gtmi: 'Promedio regional del GTMI de los 26 pa\u00EDses de ALC. Los sub\u00EDndices tambi\u00E9n se muestran como promedios regionales.',
+    gci: 'Promedio regional del GCI de los 26 pa\u00EDses de ALC.',
+    ocde: 'Promedio regional del \u00EDndice OCDE/BID y de sus dimensiones para los 26 pa\u00EDses de ALC.',
+    ai: 'Promedio regional del Government AI Readiness Index para los 26 pa\u00EDses de ALC.',
+  };
+
+  return map[clsKey] || 'Promedio regional del indicador para los 26 pa\u00EDses de ALC.';
+}
+
+function getDimensionMethodTooltip(tabKey, isRegionAggregate) {
+  if (!isRegionAggregate) {
+    return 'Sub\u00EDndice del indicador seleccionado y comparaci\u00F3n frente al promedio de ALC.';
+  }
+
+  const map = {
+    egdi: 'Cada dimensi\u00F3n muestra el promedio regional del sub\u00EDndice EGDI correspondiente entre los 26 pa\u00EDses de ALC.',
+    gtmi: 'Cada dimensi\u00F3n muestra el promedio regional del sub\u00EDndice GTMI correspondiente entre los 26 pa\u00EDses de ALC.',
+    gci: 'El GCI no tiene desglose por dimensiones en esta vista.',
+    ocde: 'Cada dimensi\u00F3n muestra el promedio regional del sub\u00EDndice OCDE/BID correspondiente entre los 26 pa\u00EDses de ALC.',
+  };
+
+  return map[tabKey] || 'Promedio regional de la dimensi\u00F3n para los 26 pa\u00EDses de ALC.';
 }
 
 init();

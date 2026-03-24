@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Desarrollo Digital LATAM &mdash; Dashboard de Indicadores</title>
-  <meta name="description" content="Panel de indicadores de desarrollo digital y socioecon&oacute;mico para pa&iacute;ses de Latinoam&eacute;rica. Datos del Banco Mundial." />
+  <title>OGDILAC &mdash; Observatorio de Gobierno Digital de Am&eacute;rica Latina y el Caribe</title>
+  <meta name="description" content="OGDILAC, observatorio de gobierno digital de Am&eacute;rica Latina y el Caribe con indicadores regionales y comparativos." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -13,13 +13,15 @@
 <body>
   <div class="app-layout">
     <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <span class="sidebar-logo">&#x1F30E;</span>
-        <div>
-          <h1 class="sidebar-title">Desarrollo Digital <span class="gradient-text">LATAM</span></h1>
-          <p class="sidebar-subtitle">Indicadores en tiempo real</p>
+        <div class="sidebar-header">
+          <div class="sidebar-logo" aria-hidden="true">
+            <img class="sidebar-logo-img" src="/img/ogdilac.png" alt="Logo OGDILAC" />
+          </div>
+          <div>
+            <h1 class="sidebar-title">OGDILAC</h1>
+            <p class="sidebar-subtitle">Observatorio de Gobierno Digital de Am&eacute;rica Latina y el Caribe</p>
+          </div>
         </div>
-      </div>
 
       <div class="map-container" id="map-container">
         <button type="button" class="map-region-trigger" id="map-region-trigger" aria-label="Ver agregado regional de América Latina y el Caribe" title="América Latina y el Caribe">
@@ -155,6 +157,7 @@
         <section class="card-grid" id="basic-section">
           <div class="section-header">
             <h3 class="section-title">Datos demogr&aacute;ficos y macroecon&oacute;micos</h3>
+            <p class="section-subtitle hidden" id="basic-method-note"></p>
           </div>
           <div class="cards" id="basic-cards"></div>
           <p class="section-links" id="basic-links"></p>
@@ -163,6 +166,7 @@
         <section class="card-grid" id="connectivity-section">
           <div class="section-header">
             <h3 class="section-title">Conectividad</h3>
+            <p class="section-subtitle hidden" id="connectivity-method-note"></p>
           </div>
           <div class="cards" id="connectivity-cards"></div>
           <p class="section-links" id="connectivity-links"></p>
@@ -171,6 +175,7 @@
         <section class="card-grid" id="findex-section">
           <div class="section-header">
             <h3 class="section-title">Econom&iacute;a y talento digital</h3>
+            <p class="section-subtitle hidden" id="findex-method-note"></p>
           </div>
           <div class="cards" id="findex-cards"></div>
           <p class="section-links" id="findex-links"></p>
@@ -180,6 +185,7 @@
           <div class="section-header">
             <h3 class="section-title">&Iacute;ndices de Desarrollo Digital del Gobierno</h3>
             <p class="section-subtitle">Oxford AI Readiness &middot; ITU GCI &middot; OCDE/BID Gov Digital &middot; Banco Mundial GTMI &middot; ONU EGDI</p>
+            <p class="section-subtitle hidden" id="gov-method-note"></p>
           </div>
           <div class="gov-layout">
             <div class="gov-radar-wrap">
@@ -192,6 +198,7 @@
         <section class="gov-dimensions-section" id="gov-dimensions-section" style="display:none;">
           <div class="section-header">
             <h3 class="section-title">Dimensiones &middot; Desglose por &aacute;reas de evaluaci&oacute;n</h3>
+            <p class="section-subtitle hidden" id="dimensions-method-note"></p>
           </div>
           <div class="gov-dim-container">
             <div class="gov-dim-tabs" id="gov-dim-tabs">
