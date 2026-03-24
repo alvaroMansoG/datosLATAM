@@ -1,0 +1,14 @@
+{
+  "name": "desarrollo-digital-latam",
+  "version": "1.0.0",
+  "description": "Dashboard de indicadores de desarrollo digital para Latinoamérica",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "csv-parser": "^3.2.0",
+    "express": "^4.21.0"
+  }
+}

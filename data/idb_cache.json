@@ -1,0 +1,81 @@
+{
+  "ARG": {
+    "idb_gdp_pc": {
+      "value": 13812.69912550203,
+      "year": 2024,
+      "source": "BID LMW"
+    },
+    "idb_population": {
+      "value": 45.696159,
+      "year": 2024,
+      "source": "BID LMW"
+    },
+    "idb_exchange_rate": {
+      "value": 1262.381933333333,
+      "year": 2025,
+      "source": "BID LMW"
+    },
+    "idb_wage_index": {
+      "value": 134178.9646260381,
+      "year": 2025,
+      "source": "BID LMW"
+    },
+    "idb_fdi": {
+      "value": -8887.671128061334,
+      "year": 2024,
+      "source": "BID LMW"
+    },
+    "idb_educacion": {
+      "value": 11.1896052826829,
+      "year": 2024,
+      "source": "BID SIMS"
+    },
+    "idb_ninis": {
+      "value": 0.0920686030797978,
+      "year": 2024,
+      "source": "BID SIMS"
+    },
+    "idb_urbano": {
+      "value": 1,
+      "year": 2024,
+      "source": "BID SIMS"
+    },
+    "idb_luz": {
+      "value": 0.995673693498076,
+      "year": 2002,
+      "source": "BID SIMS"
+    }
+  },
+  "BOL": {
+    "idb_educacion": {
+      "value": 11.5056966145833,
+      "year": 2013,
+      "source": "BID SIMS"
+    },
+    "idb_ninis": {
+      "value": 0.104412425319002,
+      "year": 2013,
+      "source": "BID SIMS"
+    },
+    "idb_urbano": {
+      "value": 0.674368653515468,
+      "year": 2013,
+      "source": "BID SIMS"
+    },
+    "idb_luz": {
+      "value": 0.92937925170068,
+      "year": 2012,
+      "source": "BID SIMS"
+    },
+    "idb_celular": {
+      "value": 0.812044299058054,
+      "year": 2011,
+      "source": "BID SIMS"
+    },
+    "idb_internet": {
+      "value": 0.530824829931973,
+      "year": 2012,
+      "source": "BID SIMS"
+    }
+  }
+}
