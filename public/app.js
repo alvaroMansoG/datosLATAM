@@ -23,6 +23,8 @@ const mapPlaceholder    = $('#map-placeholder');
 const countryBanner     = $('#country-banner');
 const bannerFlag        = $('#banner-flag');
 const bannerName        = $('#banner-name');
+const basicLinks        = $('#basic-links');
+const connectivityLinks = $('#connectivity-links');
 
 // State
 let countries = [];
@@ -33,6 +35,178 @@ let _dimRadarChart = null;
 
 // Numeric ID → ISO3 mapping (built from server data)
 let numericToIso = {};
+const ISO2_BY_ISO3 = {
+  ARG: 'ar', BOL: 'bo', BRA: 'br', CHL: 'cl', COL: 'co', CRI: 'cr', DOM: 'do',
+  ECU: 'ec', SLV: 'sv', GTM: 'gt', HTI: 'ht', HND: 'hn', JAM: 'jm', MEX: 'mx',
+  NIC: 'ni', PAN: 'pa', PRY: 'py', PER: 'pe', TTO: 'tt', URY: 'uy', VEN: 've',
+  GUY: 'gy', SUR: 'sr', BLZ: 'bz', BHS: 'bs', BRB: 'bb'
+};
+const INDICATOR_ICONS = {
+  'SP.POP.TOTL': '\uD83D\uDC65',
+  'SL.TLF.TOTL.IN': '\uD83D\uDC68\u200D\uDCBC',
+  'SL.UEM.TOTL.ZS': '\uD83D\uDCC9',
+  'NY.GDP.MKTP.CD': '\uD83C\uDFDB\uFE0F',
+  'NY.GDP.PCAP.CD': '\uD83D\uDCB0',
+  'NY.GDP.MKTP.KD.ZG': '\uD83D\uDCC8',
+  'UNDP.HDI': '\uD83C\uDF93',
+  'SI.POV.GINI': '\u2696\uFE0F',
+  'ITU_DH_INT_USER_PT': '\uD83C\uDF10',
+  'ITU_DH_HH_INT': '\uD83C\uDFE0',
+  'IT.NET.USER.ZS': '\uD83C\uDF10',
+  'ITU_DH_MOB_SUB_PER_100': '\uD83D\uDCF1',
+  'IT.CEL.SETS.P2': '\uD83D\uDCF1',
+  'IT.NET.BBND.P2': '\uD83D\uDCE1',
+  'ITU_DH_POP_COV_5G': '\uD83D\uDCF6',
+  'ITU_DH_POP_COV_4G': '\uD83D\uDCF6',
+  'ITU_DH_POP_COV_3G': '\uD83D\uDCF6',
+  FIN26B: '\uD83D\uDED2',
+  FIN27A: '\uD83D\uDCB3',
+  FIN9B: '\uD83C\uDFE6',
+  'g20.made': '\uD83D\uDCB8',
+  'g20.received': '\uD83D\uDCE5',
+  'UNCTAD_DE_DIG_SERVTRADE_ANN_EXP': '\uD83C\uDF0D',
+  'WIPO_ICT_PAT_PUB_TOT': '\uD83D\uDCA1',
+  'UNESCO_UIS_GRAD_STEM': '\uD83E\uDDEA',
+};
+const CONNECTIVITY_CARD_GROUPS = [
+  {
+    title: 'Uso y acceso a internet',
+    icon: '\uD83C\uDF10',
+    keys: ['internetUsers', 'householdInternet'],
+  },
+  {
+    title: 'Suscripciones y banda ancha',
+    icon: '\uD83D\uDCF1',
+    keys: ['mobileSubs', 'broadband'],
+  },
+  {
+    title: 'Cobertura móvil',
+    icon: '\uD83D\uDCF6',
+    keys: ['coverage5g', 'coverage4g', 'coverage3g'],
+  },
+];
+const ECONOMY_TALENT_CARD_GROUPS = [
+  {
+    title: 'Servicios financieros digitales',
+    icon: '\uD83D\uDCB3',
+    keys: ['findexBuy', 'findexPayOnline', 'findexBalance', 'findexMadePay', 'findexRecvPay'],
+  },
+  {
+    title: 'Comercio digital e innovaci\u00F3n',
+    icon: '\uD83D\uDCC8',
+    keys: ['digitalServicesExports', 'ictPatents'],
+  },
+  {
+    title: 'Talento STEM',
+    icon: '\uD83C\uDF93',
+    keys: ['stemGraduates'],
+  },
+];
+const INDICATOR_TOOLTIPS = {
+  'SP.POP.TOTL': 'Población total residente estimada a mitad de año, sin importar la situación legal o la ciudadanía.',
+  'SL.TLF.TOTL.IN': 'Personas de 15 años o más que aportan trabajo para producir bienes y servicios; incluye ocupadas y desocupadas que buscan empleo.',
+  'SL.UEM.TOTL.ZS': 'Porcentaje de la fuerza laboral que no tiene trabajo, pero está disponible y lo busca activamente.',
+  'NY.GDP.MKTP.CD': 'Valor total de los bienes y servicios producidos en la economía durante el período, expresado en dólares corrientes de Estados Unidos.',
+  'NY.GDP.PCAP.CD': 'PIB en dólares corrientes dividido entre la población total.',
+  'NY.GDP.MKTP.KD.ZG': 'Variación porcentual anual del PIB a precios constantes.',
+  'UNDP.HDI': 'Índice compuesto del PNUD que resume logros medios en salud, educación e ingreso.',
+  'SI.POV.GINI': 'Mide cuánto se desvía la distribución del ingreso o del consumo de la igualdad perfecta. Un valor de 0 representa igualdad total y 100 desigualdad total.',
+  'ITU_DH_INT_USER_PT': 'Porcentaje de personas que usaron Internet desde cualquier lugar y dispositivo durante los últimos tres meses.',
+  'ITU_DH_HH_INT': 'Porcentaje de hogares con acceso a Internet en el hogar.',
+  'ITU_DH_MOB_SUB_PER_100': 'Número de suscripciones móviles celulares activas por cada 100 habitantes.',
+  'IT.NET.BBND.P2': 'Suscripciones fijas de banda ancha por cada 100 personas, incluyendo accesos de alta velocidad a Internet por redes fijas.',
+  'ITU_DH_POP_COV_5G': 'Porcentaje de la población que vive dentro del alcance de una señal móvil 5G, tenga o no una suscripción activa.',
+  'ITU_DH_POP_COV_4G': 'Porcentaje de la población que vive dentro del alcance de una señal móvil 4G, tenga o no una suscripción activa.',
+  'ITU_DH_POP_COV_3G': 'Porcentaje de la población que vive dentro del alcance de una señal móvil 3G, tenga o no una suscripción activa.',
+  FIN26B: 'Porcentaje de adultos que usaron un móvil o Internet para comprar algo en línea.',
+  FIN27A: 'Porcentaje de adultos que usaron un móvil o Internet para pagar una compra en línea.',
+  FIN9B: 'Porcentaje de adultos que usaron un móvil o Internet para consultar el saldo de una cuenta financiera.',
+  'g20.made': 'Porcentaje de adultos que realizaron al menos un pago digital.',
+  'g20.received': 'Porcentaje de adultos que recibieron al menos un pago digital.',
+  'UNCTAD_DE_DIG_SERVTRADE_ANN_EXP': 'Valor de las exportaciones internacionales de servicios entregables digitalmente, expresado en millones de d\u00F3lares estadounidenses.',
+  'WIPO_ICT_PAT_PUB_TOT': 'N\u00FAmero total de publicaciones de patentes relacionadas con tecnolog\u00EDas de la informaci\u00F3n y la comunicaci\u00F3n.',
+  'UNESCO_UIS_GRAD_STEM': 'Porcentaje de graduados de educaci\u00F3n terciaria provenientes de programas STEM.',
+};
+
+function fixText(value) {
+  if (typeof value !== 'string') return value;
+
+  return value
+    .replace(/\u00C3\u00A1/g, '\u00E1')
+    .replace(/\u00C3\u00A9/g, '\u00E9')
+    .replace(/\u00C3\u00AD/g, '\u00ED')
+    .replace(/\u00C3\u00B3/g, '\u00F3')
+    .replace(/\u00C3\u00BA/g, '\u00FA')
+    .replace(/\u00C3\u00B1/g, '\u00F1')
+    .replace(/\u00C3\u0081/g, '\u00C1')
+    .replace(/\u00C3\u0089/g, '\u00C9')
+    .replace(/\u00C3\u008D/g, '\u00CD')
+    .replace(/\u00C3\u0093/g, '\u00D3')
+    .replace(/\u00C3\u009A/g, '\u00DA')
+    .replace(/\u00C3\u0091/g, '\u00D1')
+    .replace(/\u00C2\u00B7/g, '\u00B7')
+    .replace(/\u00E2\u20AC\u201D/g, '\u2014')
+    .replace(/\u00E2\u20AC\u00A6/g, '\u2026')
+    .replace(/\u00E2\u2014\u008F/g, '\u25CF')
+    .replace(/\u00CE\u201D/g, '\u0394');
+}
+
+function escapeHtmlAttr(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function getFlagEmoji(iso3) {
+  const iso2 = ISO2_BY_ISO3[iso3];
+  if (!iso2) return '';
+
+  return iso2
+    .toUpperCase()
+    .split('')
+    .map(char => String.fromCodePoint(127397 + char.charCodeAt(0)))
+    .join('');
+}
+
+function normalizeCountryId(id) {
+  return String(id).padStart(3, '0');
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === 'true') {
+        resolve();
+        return;
+      }
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error(`No se pudo cargar ${src}`)), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = false;
+    script.addEventListener('load', () => {
+      script.dataset.loaded = 'true';
+      resolve();
+    }, { once: true });
+    script.addEventListener('error', () => reject(new Error(`No se pudo cargar ${src}`)), { once: true });
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureMapLibraries() {
+  if (!window.d3) {
+    await loadScript('https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js');
+  }
+  if (!window.topojson) {
+    await loadScript('https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js');
+  }
+}
 
 // ─── Country color palette ─────────────────────────────
 // BID corporate blue palette for map countries
@@ -94,20 +268,196 @@ const COUNTRY_NAMES_ES = {
   '032': 'Argentina',   '068': 'Bolivia',  '076': 'Brasil',   '084': 'Belice',
   '152': 'Chile',       '170': 'Colombia', '188': 'Costa Rica','044': 'Bahamas',
   '214': 'Rep. Dom.',   '218': 'Ecuador',  '222': 'El Salvador','320': 'Guatemala',
-  '328': 'Guyana',      '332': 'Haití',    '340': 'Honduras', '388': 'Jamaica',
-  '484': 'México',      '558': 'Nicaragua','591': 'Panamá',   '600': 'Paraguay',
-  '604': 'Perú',        '740': 'Surinam',  '780': 'Trinidad y T.','858': 'Uruguay',
+  '328': 'Guyana',      '332': 'Hait\u00ED',    '340': 'Honduras', '388': 'Jamaica',
+  '484': 'M\u00E9xico', '558': 'Nicaragua','591': 'Panam\u00E1',   '600': 'Paraguay',
+  '604': 'Per\u00FA',   '740': 'Surinam',  '780': 'Trinidad y T.','858': 'Uruguay',
   '862': 'Venezuela',   '052': 'Barbados'
 };
+const WORLD_BANK_COUNTRY_SLUGS = {
+  ARG: 'argentina',
+  BOL: 'bolivia',
+  BRA: 'brasil',
+  CHL: 'chile',
+  COL: 'colombia',
+  CRI: 'costa-rica',
+  DOM: 'republica-dominicana',
+  ECU: 'ecuador',
+  SLV: 'el-salvador',
+  GTM: 'guatemala',
+  HTI: 'haiti',
+  HND: 'honduras',
+  JAM: 'jamaica',
+  MEX: 'mexico',
+  NIC: 'nicaragua',
+  PAN: 'panama',
+  PRY: 'paraguay',
+  PER: 'peru',
+  TTO: 'trinidad-y-tabago',
+  URY: 'uruguay',
+  VEN: 'venezuela',
+  GUY: 'guyana',
+  SUR: 'suriname',
+  BLZ: 'belice',
+  BHS: 'bahamas-las',
+  BRB: 'barbados',
+};
+
+function getIndicatorSourceMeta(indicator, country) {
+  const sourceYear = indicator.date ? ` (${indicator.date})` : '';
+  const iso3 = country?.iso3 || '';
+  const worldBankSlug = WORLD_BANK_COUNTRY_SLUGS[iso3] || '';
+  const isHdi = indicator.code === 'UNDP.HDI' || String(indicator.source || '').toUpperCase().includes('PNUD');
+
+  if (isHdi) {
+    return {
+      label: `PNUD${sourceYear}`,
+      url: iso3 ? `https://hdr.undp.org/data-center/specific-country-data#/countries/${iso3}` : 'https://hdr.undp.org/data-center/specific-country-data',
+    };
+  }
+
+  if (indicator.databaseId === 'ITU_DH') {
+    return {
+      label: `ITU DataHub v\u00EDa Data360 del Banco Mundial${sourceYear}`,
+      url: `https://data360.worldbank.org/en/indicator/${indicator.code}`,
+    };
+  }
+
+  if (indicator.databaseId === 'UNCTAD_DE') {
+    return {
+      label: `UNCTAD v\u00EDa Data360 del Banco Mundial${sourceYear}`,
+      url: `https://data360.worldbank.org/en/indicator/${indicator.code}`,
+    };
+  }
+
+  if (indicator.databaseId === 'WIPO_ICT') {
+    return {
+      label: `WIPO v\u00EDa Data360 del Banco Mundial${sourceYear}`,
+      url: `https://data360.worldbank.org/en/indicator/${indicator.code}`,
+    };
+  }
+
+  if (indicator.databaseId === 'UNESCO_UIS') {
+    return {
+      label: `UNESCO UIS v\u00EDa Data360 del Banco Mundial${sourceYear}`,
+      url: `https://data360.worldbank.org/en/indicator/${indicator.code}`,
+    };
+  }
+
+  if (indicator.category === 'connectivity') {
+    return {
+      label: `Data360${sourceYear}`,
+      url: iso3 ? `https://data360.worldbank.org/en/economy/${iso3}?tab=Digital` : 'https://data360.worldbank.org',
+    };
+  }
+
+  if (indicator.category === 'findex') {
+    return {
+      label: `Global FINDEX${sourceYear}`,
+      url: 'https://data360.worldbank.org/en/dataset/WB_FINDEX',
+    };
+  }
+
+  return {
+    label: `Banco Mundial${sourceYear}`,
+    url: worldBankSlug ? `https://datos.bancomundial.org/pais/${worldBankSlug}` : 'https://datos.bancomundial.org',
+  };
+}
+
+function collectSourceMetas(indicators, country) {
+  const sourceMetas = [];
+  const sourceKeys = new Set();
+
+  indicators.filter(Boolean).forEach((indicator) => {
+    const sourceMeta = getIndicatorSourceMeta(indicator, country);
+    const dedupeKey = `${sourceMeta.label}|${sourceMeta.url}`;
+    if (sourceKeys.has(dedupeKey)) return;
+    sourceKeys.add(dedupeKey);
+    sourceMetas.push(sourceMeta);
+  });
+
+  return sourceMetas;
+}
+
+function getRankMeta(indicator) {
+  const hasRegionalRank = indicator.rankALC != null && indicator.totalALC;
+  const medalMap = {
+    1: { icon: '\uD83E\uDD47', className: 'top-1' },
+    2: { icon: '\uD83E\uDD48', className: 'top-2' },
+    3: { icon: '\uD83E\uDD49', className: 'top-3' },
+  };
+  const medal = hasRegionalRank ? (medalMap[indicator.rankALC] || null) : null;
+  const rankBadge = hasRegionalRank
+    ? `#${indicator.rankALC}`
+    : '--';
+  const rankTooltip = hasRegionalRank
+    ? `Posici\u00F3n del pa\u00EDs para este indicador dentro de los ${indicator.totalALC} pa\u00EDses de Am\u00E9rica Latina y el Caribe.`
+    : 'No hay ranking regional disponible para este indicador.';
+
+  return { hasRegionalRank, medal, rankBadge, rankTooltip };
+}
 
 // ─── Format helpers ────────────────────────────────────
+function formatLocaleNumber(value, decimals = 2, useGrouping = true) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return null;
+  return new Intl.NumberFormat('es-ES', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    useGrouping,
+  }).format(Number(value));
+}
+
+function formatMillions(value, unitLabel = 'M') {
+  const formatted = formatLocaleNumber(Number(value) / 1_000_000, 2);
+  return formatted ? `${formatted} ${unitLabel}` : null;
+}
+
+function formatValueWithYearText(displayValue, year) {
+  if (!displayValue) return '--';
+  return year ? `${displayValue} \u00B7 ${year}` : displayValue;
+}
+
+function getIndicatorTooltip(indicator) {
+  return INDICATOR_TOOLTIPS[indicator.code] || fixText(indicator.label) || 'Indicador sin descripción disponible.';
+}
+
+function buildValueRowHtml(displayValue, hasData, year, tooltip) {
+  if (!year) {
+    return `<span class="card-value ${hasData ? '' : 'no-data'}" title="${escapeHtmlAttr(tooltip)}" aria-label="${escapeHtmlAttr(tooltip)}">${hasData ? displayValue : '--'}</span>`;
+  }
+
+  return `
+    <div class="card-value-row" title="${escapeHtmlAttr(tooltip)}" aria-label="${escapeHtmlAttr(tooltip)}">
+      <span class="card-value ${hasData ? '' : 'no-data'}">${hasData ? displayValue : '--'}</span>
+      <span class="card-value-sep" aria-hidden="true">\u00B7</span>
+      <span class="card-year">${year}</span>
+    </div>
+  `;
+}
+
+function buildMetaItemHtml(label, displayText, metaIndicator, extraClass = '') {
+  const tooltip = getIndicatorTooltip(metaIndicator);
+  const { hasRegionalRank, medal, rankBadge, rankTooltip } = getRankMeta(metaIndicator);
+  const hasData = displayText && displayText !== '--';
+
+  return `
+    <span class="card-meta-row ${hasData ? '' : 'no-data'} ${extraClass}" title="${escapeHtmlAttr(tooltip)}" aria-label="${escapeHtmlAttr(tooltip)}">
+      <span class="card-meta-rank ${hasRegionalRank ? '' : 'no-data'} ${medal ? medal.className : ''}" title="${escapeHtmlAttr(rankTooltip)}" aria-label="${escapeHtmlAttr(rankTooltip)}">
+        ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
+        <span>${rankBadge}</span>
+      </span>
+      <span class="card-meta-copy">${label}: ${displayText || '--'}</span>
+    </span>
+  `;
+}
+
 function formatValue(value, format) {
   if (value === null || value === undefined) return null;
   switch (format) {
-    case 'number':   return new Intl.NumberFormat('es-ES').format(Math.round(value));
-    case 'currency': return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
-    case 'percent':  return value.toFixed(2) + '%';
-    case 'decimal':  return (typeof value === 'number') ? value.toFixed(4) : String(value);
+    case 'number':   return formatLocaleNumber(value, 2);
+    case 'currency': return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    case 'millionUsd': return `${formatLocaleNumber(value, 2)} M USD`;
+    case 'percent':  return `${formatLocaleNumber(value, 2)}%`;
+    case 'decimal':  return (typeof value === 'number') ? formatLocaleNumber(value, 2, false) : String(value);
     case 'rank':     return `#${value} / 193`;
     case 'gtmi':     return `Grupo ${value}`;
     case 'gciTier':  return value ? value : null;
@@ -121,7 +471,7 @@ function formatTime(timezone) {
     const dayFmt = new Intl.DateTimeFormat('es-ES', { weekday: 'short', timeZone: timezone });
     const timeFmt = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: timezone });
     return `${dayFmt.format(now)}, ${timeFmt.format(now)}`;
-  } catch { return '—'; }
+  } catch { return '\u2014'; }
 }
 
 function formatExchangeRate(rate, code) {
@@ -131,19 +481,37 @@ function formatExchangeRate(rate, code) {
 }
 
 // ─── Create indicator card ─────────────────────────────
-function createCard(indicator) {
+function createCard(indicator, country, allIndicators = {}) {
   const card = document.createElement('div');
   card.className = 'card';
+  const showCardSources = indicator.category !== 'basic';
   
-  // Assign badge colors based on category/indicator
-  let badgeColor = 'var(--bid-azul)';
-  if (indicator.category === 'basic') badgeColor = '#7e64a6'; // Purple
-  else if (indicator.category === 'connectivity') badgeColor = '#65bba6'; // Teal
-  else if (indicator.category === 'findex') badgeColor = '#2db371'; // Green
-  else if (indicator.category === 'gov') badgeColor = '#3a5ca8'; // Indigo for government indices
-  
-  // Set custom CSS variable for the badge background
-  card.style.setProperty('--badge-bg', badgeColor);
+  const badgeThemeMap = {
+    basic: {
+      bg: '#dbe8ef',
+      ink: 'var(--bid-azul)',
+      border: '#bcd8df',
+    },
+    connectivity: {
+      bg: '#dbedf8',
+      ink: '#35749b',
+      border: '#b7dbf2',
+    },
+    findex: {
+      bg: '#deebde',
+      ink: '#599a69',
+      border: '#accdb4',
+    },
+    gov: {
+      bg: '#e3e1df',
+      ink: '#605f59',
+      border: '#d3d2d1',
+    },
+  };
+  const badgeTheme = badgeThemeMap[indicator.category] || badgeThemeMap.basic;
+  card.style.setProperty('--badge-bg', badgeTheme.bg);
+  card.style.setProperty('--badge-ink', badgeTheme.ink);
+  card.style.setProperty('--badge-border', badgeTheme.border);
 
   // For gov indicators use the special gciTierLabel if it exists
   let displayValue;
@@ -152,29 +520,155 @@ function createCard(indicator) {
   } else {
     displayValue = formatValue(indicator.value, indicator.format);
   }
+  if (indicator.code === 'SP.POP.TOTL' && indicator.value != null) {
+    displayValue = formatMillions(indicator.value);
+  }
+  if (indicator.code === 'NY.GDP.MKTP.CD' && indicator.value != null) {
+    displayValue = formatMillions(indicator.value, 'M USD');
+  }
   const hasData = displayValue !== null;
-  
-  // The source label
-  let source = indicator.source || 'Banco Mundial';
-  if (!indicator.source) {
-    if (indicator.category === 'basic' && indicator.label.includes('Humano')) source = 'PNUD / Naciones Unidas';
-    else if (indicator.category === 'basic') source = 'Banco Mundial';
-    if (indicator.category === 'connectivity') source = 'UIT / Banco Mundial';
-    if (indicator.category === 'findex') source = 'Global Findex / Banco Mundial';
+  const mainTooltip = getIndicatorTooltip(indicator);
+  const mainValueHtml = buildValueRowHtml(displayValue, hasData, indicator.date, mainTooltip);
+  const embeddedIndicators = [];
+  let extraMetaHtml = '';
+
+  if (indicator.code === 'SP.POP.TOTL') {
+    if (allIndicators.laborForce) {
+      const laborForce = allIndicators.laborForce;
+      embeddedIndicators.push(laborForce);
+      const laborForceValue = formatValue(laborForce.value, laborForce.format);
+      const laborForceShare = indicator.value && laborForce.value != null
+        ? formatLocaleNumber((Number(laborForce.value) / Number(indicator.value)) * 100, 2, false)
+        : null;
+      const laborForceText = laborForceValue
+        ? `${laborForceValue}${laborForceShare ? ` (${laborForceShare}%)` : ''}`
+        : '--';
+
+      extraMetaHtml += buildMetaItemHtml('Fuerza laboral', formatValueWithYearText(laborForceText, laborForce.date), laborForce);
+    }
+
+    if (allIndicators.unemployment) {
+      const unemployment = allIndicators.unemployment;
+      embeddedIndicators.push(unemployment);
+      const unemploymentValue = formatValue(unemployment.value, unemployment.format);
+      extraMetaHtml += buildMetaItemHtml('Desempleo', formatValueWithYearText(unemploymentValue, unemployment.date), unemployment);
+    }
+
+    if (allIndicators.hdi) {
+      const hdi = allIndicators.hdi;
+      embeddedIndicators.push(hdi);
+      const hdiValue = formatValue(hdi.value, hdi.format);
+      extraMetaHtml += buildMetaItemHtml('\u00CDndice de desarrollo humano', formatValueWithYearText(hdiValue, hdi.date), hdi, 'card-meta-break');
+    }
+  }
+
+  if (indicator.code === 'NY.GDP.MKTP.CD') {
+    const gdpPerCapita = allIndicators.gdpPerCapita;
+    const gdpGrowth = allIndicators.gdpGrowth;
+    const gini = allIndicators.gini;
+
+    if (gdpPerCapita) {
+      embeddedIndicators.push(gdpPerCapita);
+      const gdpPerCapitaValue = formatValue(gdpPerCapita.value, gdpPerCapita.format);
+      extraMetaHtml += buildMetaItemHtml('PIB per c\u00E1pita', formatValueWithYearText(gdpPerCapitaValue, gdpPerCapita.date), gdpPerCapita);
+    }
+
+    if (gdpGrowth) {
+      embeddedIndicators.push(gdpGrowth);
+      const gdpGrowthValue = formatValue(gdpGrowth.value, gdpGrowth.format);
+      extraMetaHtml += buildMetaItemHtml('Crecimiento del PIB', formatValueWithYearText(gdpGrowthValue, gdpGrowth.date), gdpGrowth);
+    }
+
+    if (gini) {
+      embeddedIndicators.push(gini);
+      const giniValue = formatValue(gini.value, gini.format);
+      extraMetaHtml += buildMetaItemHtml('\u00CDndice de Gini', formatValueWithYearText(giniValue, gini.date), gini);
+    }
   }
   
-  if (indicator.date) {
-    source += ` · ${indicator.date}`;
+  const sourceMetas = collectSourceMetas([indicator, ...embeddedIndicators], country);
+  const { hasRegionalRank, medal, rankBadge, rankTooltip } = getRankMeta(indicator);
+
+  if (showCardSources && sourceMetas.length > 1) {
+    card.classList.add('card-with-source-group');
   }
 
   card.innerHTML = `
-    <div class="card-badge">${indicator.icon}</div>
+    <div class="card-badge">${INDICATOR_ICONS[indicator.code] || fixText(indicator.icon) || ''}</div>
     <div class="card-content">
-      <span class="card-label">${indicator.label}</span>
-      <span class="card-value ${hasData ? '' : 'no-data'}">${hasData ? displayValue : '--'}</span>
-      <span class="card-source">${source}</span>
+      <span class="card-label" title="${escapeHtmlAttr(mainTooltip)}" aria-label="${escapeHtmlAttr(mainTooltip)}">${fixText(indicator.label)}</span>
+      <div class="card-main-row">
+        <span class="card-alc-badge ${hasRegionalRank ? '' : 'no-data'} ${medal ? medal.className : ''}" title="${rankTooltip}" aria-label="${rankTooltip}">
+          ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
+          <span>${rankBadge}</span>
+        </span>
+        <div class="card-main-copy">
+          ${mainValueHtml}
+        </div>
+      </div>
+      ${extraMetaHtml}
+      ${!showCardSources ? ''
+        : sourceMetas.length === 1
+        ? `<a class="card-source" href="${sourceMetas[0].url}" target="_blank" rel="noopener noreferrer">${fixText(sourceMetas[0].label)}</a>`
+        : `<div class="card-source-group">
+            ${sourceMetas.map((sourceMeta) => `
+              <a class="card-source-link" href="${sourceMeta.url}" target="_blank" rel="noopener noreferrer">${fixText(sourceMeta.label)}</a>
+            `).join('')}
+          </div>`
+      }
     </div>
   `;
+  return card;
+}
+
+function createCompoundCard({ title, icon, metrics, country, showSources = true, theme = { bg: '#dbedf8', ink: '#35749b', border: '#b7dbf2' } }) {
+  const card = document.createElement('div');
+  card.className = 'card card-compound';
+  card.style.setProperty('--badge-bg', theme.bg);
+  card.style.setProperty('--badge-ink', theme.ink);
+  card.style.setProperty('--badge-border', theme.border);
+
+  const metricRows = metrics.map((indicator) => {
+    const displayValue = formatValue(indicator.value, indicator.format);
+    const hasData = displayValue !== null;
+    const { hasRegionalRank, medal, rankBadge, rankTooltip } = getRankMeta(indicator);
+    const metricTooltip = getIndicatorTooltip(indicator);
+    const metricText = formatValueWithYearText(displayValue, indicator.date);
+
+    return `
+      <div class="card-metric-row" title="${escapeHtmlAttr(metricTooltip)}" aria-label="${escapeHtmlAttr(metricTooltip)}">
+        <span class="card-mini-rank ${hasRegionalRank ? '' : 'no-data'} ${medal ? medal.className : ''}" title="${rankTooltip}" aria-label="${rankTooltip}">
+          ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
+          <span>${rankBadge}</span>
+        </span>
+        <div class="card-metric-copy">
+          <span class="card-metric-label">${fixText(indicator.label)}</span>
+          <span class="card-metric-value ${hasData ? '' : 'no-data'}">${hasData ? metricText : '--'}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const sourceMetas = collectSourceMetas(metrics, country);
+
+  card.innerHTML = `
+    <div class="card-badge">${icon}</div>
+    <div class="card-content card-content-compound">
+      <span class="card-label">${title}</span>
+      <div class="card-metric-list">
+        ${metricRows}
+      </div>
+      ${showSources
+        ? `<div class="card-source-group">
+            ${sourceMetas.map((sourceMeta) => `
+              <a class="card-source-link" href="${sourceMeta.url}" target="_blank" rel="noopener noreferrer">${fixText(sourceMeta.label)}</a>
+            `).join('')}
+          </div>`
+        : ''
+      }
+    </div>
+  `;
+
   return card;
 }
 
@@ -191,9 +685,73 @@ function renderIndicators(data) {
   if (document.getElementById('basic-section')) document.getElementById('basic-section').style.display = 'block';
   if (document.getElementById('connectivity-section')) document.getElementById('connectivity-section').style.display = 'block';
 
+  CONNECTIVITY_CARD_GROUPS.forEach((group) => {
+    const metrics = group.keys
+      .map(key => data.indicators[key])
+      .filter(Boolean);
+
+    if (metrics.length && containers.connectivity) {
+      containers.connectivity.appendChild(createCompoundCard({
+        title: group.title,
+        icon: group.icon,
+        metrics,
+        country: data.country,
+        showSources: false,
+      }));
+    }
+  });
+
+  ECONOMY_TALENT_CARD_GROUPS.forEach((group) => {
+    const metrics = group.keys
+      .map(key => data.indicators[key])
+      .filter(Boolean);
+
+    if (metrics.length && containers.findex) {
+      containers.findex.appendChild(createCompoundCard({
+        title: group.title,
+        icon: group.icon,
+        metrics,
+        country: data.country,
+        theme: { bg: '#deebde', ink: '#599a69', border: '#accdb4' },
+      }));
+    }
+  });
+
   for (const [, indicator] of Object.entries(data.indicators)) {
+    if (indicator.category === 'connectivity' || indicator.category === 'findex') continue;
+    if (indicator.embeddedIn) continue;
     const container = containers[indicator.category];
-    if (container) container.appendChild(createCard(indicator));
+    if (container) container.appendChild(createCard(indicator, data.country, data.indicators));
+  }
+
+  if (basicLinks) {
+    const iso3 = data.country?.iso3 || '';
+    const worldBankSlug = WORLD_BANK_COUNTRY_SLUGS[iso3] || '';
+    const worldBankUrl = worldBankSlug
+      ? `https://datos.bancomundial.org/pais/${worldBankSlug}`
+      : 'https://datos.bancomundial.org';
+    const undpUrl = iso3
+      ? `https://hdr.undp.org/data-center/specific-country-data#/countries/${iso3}`
+      : 'https://hdr.undp.org/data-center/specific-country-data#/countries/';
+
+    basicLinks.innerHTML = `
+      <span>Fuente:</span>
+      <a href="${worldBankUrl}" target="_blank" rel="noopener noreferrer">Banco Mundial</a>
+      <span>&middot;</span>
+      <a href="${undpUrl}" target="_blank" rel="noopener noreferrer">PNUD</a>
+    `;
+  }
+
+  if (connectivityLinks) {
+    const iso3 = data.country?.iso3 || '';
+    const connectivityUrl = iso3
+      ? `https://data360.worldbank.org/en/dataset/ITU_DH?country=${iso3}`
+      : 'https://data360.worldbank.org/en/dataset/ITU_DH';
+
+    connectivityLinks.innerHTML = `
+      <span>Fuente:</span>
+      <a href="${connectivityUrl}" target="_blank" rel="noopener noreferrer">ITU via Banco Mundial</a>
+    `;
   }
 }
 
@@ -219,7 +777,7 @@ function buildPositionBar(scores, currentIso, countryName, alcAvg, allNames, isC
   
   // Formatter for values (e.g., GCI 96.5 vs EGDI 0.840)
   const is100Scale = max > 10;
-  function fmt(v) { return is100Scale ? v.toFixed(1) : v.toFixed(3); }
+  function fmt(v) { return formatLocaleNumber(v, 2, false); }
 
   // 1. Draw all other countries as small markers
   for (const [iso, val] of Object.entries(scores)) {
@@ -248,7 +806,7 @@ function buildPositionBar(scores, currentIso, countryName, alcAvg, allNames, isC
   const current = scores[currentIso] ?? null;
   if (current != null) {
     const currentPct = ((current - min) / range) * 100;
-    const lbl = countryName.split(' ')[0] + (countryName.includes('República') ? ' Dom.' : '');
+    const lbl = countryName.split(' ')[0] + (countryName.includes('Rep\u00FAblica') ? ' Dom.' : '');
     markersHtml += `
       <div class="gov-marker active-country" style="left:${currentPct.toFixed(2)}%">
         <div class="gov-marker-label">${lbl}: <span style="font-weight:700;margin-left:4px">${fmt(current)}</span></div>
@@ -259,7 +817,7 @@ function buildPositionBar(scores, currentIso, countryName, alcAvg, allNames, isC
   const div = document.createElement('div');
   div.className = 'gov-posbar-wrap';
   div.innerHTML = `
-    <div class="gov-posbar-label">Posición relativa en ALC (${numCountries} países)</div>
+    <div class="gov-posbar-label">Posici\u00F3n relativa en ALC (${numCountries} pa\u00EDses)</div>
     <div class="gov-posbar-track">
       ${markersHtml}
     </div>
@@ -271,7 +829,7 @@ function buildPositionBar(scores, currentIso, countryName, alcAvg, allNames, isC
 function buildGovCard({ clsKey, org, name, year, scoreDisplay, group, groupLabel,
     rankWorld, rankALC, alcAvg, diffVsAlc, allAlc, allNames, countryName, countryIso, isCategory }) {
   const diffClass = diffVsAlc >= 0 ? 'gov-diff-positive' : 'gov-diff-negative';
-  const diffStr   = diffVsAlc != null ? `${diffVsAlc >= 0 ? '+' : ''}${diffVsAlc}` : '—';
+  const diffStr   = diffVsAlc != null ? `${diffVsAlc >= 0 ? '+' : ''}${formatLocaleNumber(Math.abs(diffVsAlc), 2, false)}` : '\u2014';
 
   const card = document.createElement('div');
   card.className = 'gov-card';
@@ -288,15 +846,15 @@ function buildGovCard({ clsKey, org, name, year, scoreDisplay, group, groupLabel
       <div class="gov-card-rows">
         <span class="gov-card-row-label">Grupo ${org.split(' ')[0]}</span>
         <span></span>
-        <span class="gov-group-badge">${group || '—'}</span>
+        <span class="gov-group-badge">${group || '\u2014'}</span>
 
         <span class="gov-card-row-label">Ranking mundial</span>
         <span></span>
-        <span class="gov-card-row-val">${rankWorld != null ? `#${rankWorld}` : '—'}</span>
+        <span class="gov-card-row-val">${rankWorld != null ? `#${rankWorld}` : '\u2014'}</span>
 
         <span class="gov-card-row-label">Ranking ALC</span>
         <span></span>
-        <span class="gov-card-row-val">${rankALC != null ? `#${rankALC} / 26` : '—'}</span>
+        <span class="gov-card-row-val">${rankALC != null ? `#${rankALC}` : '\u2014'}</span>
 
         <span class="gov-card-row-label">Dif. vs media ALC</span>
         <span></span>
@@ -332,7 +890,7 @@ function renderGovSection(govData, countryName, countryIso, allAlcNames) {
   // ── 1. EGDI card (top-left)
   container.appendChild(buildGovCard({
     clsKey: 'egdi', org: 'NACIONES UNIDAS', name: 'E-Government Development Index (EGDI)', year: egdi.year || '2024',
-    scoreDisplay: egdi.score != null ? egdi.score.toFixed(4) : '—',
+    scoreDisplay: egdi.score != null ? formatLocaleNumber(egdi.score, 2, false) : '\u2014',
     group: egdi.group, rankWorld: egdi.rankWorld, rankALC: egdi.rankALC,
     alcAvg: egdi.alcAvg, diffVsAlc: egdi.diffVsAlc, allAlc: egdi.allAlc,
     allNames: allAlcNames, countryName, countryIso, isCategory: false,
@@ -341,7 +899,7 @@ function renderGovSection(govData, countryName, countryIso, allAlcNames) {
   // ── 2. GTMI card (top-right)
   const gtmiCard = buildGovCard({
     clsKey: 'gtmi', org: 'BANCO MUNDIAL', name: 'GovTech Maturity Index (GTMI)', year: gtmi.year,
-    scoreDisplay: gtmi.score != null ? gtmi.score.toFixed(3) : (gtmi.group || '—'),
+    scoreDisplay: gtmi.score != null ? formatLocaleNumber(gtmi.score, 2, false) : (gtmi.group || '\u2014'),
     group: gtmi.groupLabel, rankWorld: gtmi.rankWorld, rankALC: gtmi.rankALC,
     alcAvg: gtmi.alcAvg, diffVsAlc: gtmi.diffVsAlc, allAlc: gtmi.allAlc,
     allNames: allAlcNames, countryName, countryIso, isCategory: false,
@@ -352,20 +910,20 @@ function renderGovSection(govData, countryName, countryIso, allAlcNames) {
     const subDiv = document.createElement('div');
     subDiv.className = 'gtmi-subindices';
     const subs = [
-      { key: 'cgsi', label: 'CGSI · Sistemas Básicos', val: gtmi.cgsi },
-      { key: 'psdi', label: 'PSDI · Portales y Servicios', val: gtmi.psdi },
-      { key: 'dcei', label: 'DCEI · Habilitadores Digitales', val: gtmi.dcei },
-      { key: 'gtei', label: 'GTEI · Entorno GovTech', val: gtmi.gtei },
+      { key: 'cgsi', label: 'CGSI \u00B7 Sistemas B\u00E1sicos', val: gtmi.cgsi },
+      { key: 'psdi', label: 'PSDI \u00B7 Portales y Servicios', val: gtmi.psdi },
+      { key: 'dcei', label: 'DCEI \u00B7 Habilitadores Digitales', val: gtmi.dcei },
+      { key: 'gtei', label: 'GTEI \u00B7 Entorno GovTech', val: gtmi.gtei },
     ];
     subDiv.innerHTML = `
-      <div class="gtmi-sub-title">Sub-índices GTMI 2025</div>
+      <div class="gtmi-sub-title">Sub-\u00EDndices GTMI 2025</div>
       <div class="gtmi-sub-rows">
         ${subs.map(s => {
           const pct = (s.val * 100).toFixed(0);
           return `<div class="gtmi-sub-row">
             <span class="gtmi-sub-label">${s.label}</span>
             <div class="gtmi-sub-bar-wrap"><div class="gtmi-sub-bar" style="width:${pct}%"></div></div>
-            <span class="gtmi-sub-val">${s.val.toFixed(3)}</span>
+            <span class="gtmi-sub-val">${formatLocaleNumber(s.val, 2, false)}</span>
           </div>`;
         }).join('')}
       </div>`;
@@ -376,7 +934,7 @@ function renderGovSection(govData, countryName, countryIso, allAlcNames) {
   // ── 3. GCI card (mid-left)
   container.appendChild(buildGovCard({
     clsKey: 'gci', org: 'ITU', name: 'Global Cybersecurity Index (GCI)', year: gci.year || '2024',
-    scoreDisplay: gci.score != null ? gci.score.toFixed(1) : '—',
+    scoreDisplay: gci.score != null ? formatLocaleNumber(gci.score, 2, false) : '\u2014',
     group: gci.tier, groupLabel: gci.tierLabel, rankWorld: null, rankALC: gci.rankALC,
     alcAvg: gci.alcAvg, diffVsAlc: gci.diffVsAlc, allAlc: gci.allAlc,
     allNames: allAlcNames, countryName, countryIso, isCategory: false,
@@ -386,7 +944,7 @@ function renderGovSection(govData, countryName, countryIso, allAlcNames) {
   if (ocde.score != null || (ocde.allAlc && Object.keys(ocde.allAlc).length > 0)) {
     container.appendChild(buildGovCard({
       clsKey: 'ocde', org: 'OCDE / BID', name: 'Digital Government Index', year: ocde.year || '',
-      scoreDisplay: ocde.score != null ? ocde.score.toFixed(3) : '—',
+      scoreDisplay: ocde.score != null ? formatLocaleNumber(ocde.score, 2, false) : '\u2014',
       group: null, rankWorld: null, rankALC: ocde.rankALC,
       alcAvg: ocde.alcAvg, diffVsAlc: ocde.diffVsAlc, allAlc: ocde.allAlc,
       allNames: allAlcNames, countryName, countryIso, isCategory: false,
@@ -397,7 +955,7 @@ function renderGovSection(govData, countryName, countryIso, allAlcNames) {
   if (ai.score != null || (ai.allAlc && Object.keys(ai.allAlc).length > 0)) {
     container.appendChild(buildGovCard({
       clsKey: 'ai', org: 'OXFORD INSIGHTS', name: 'Government AI Readiness Index', year: ai.year || '2023',
-      scoreDisplay: ai.score != null ? ai.score.toFixed(2) : '—',
+      scoreDisplay: ai.score != null ? formatLocaleNumber(ai.score, 2, false) : '\u2014',
       group: null, rankWorld: null, rankALC: ai.rankALC,
       alcAvg: ai.alcAvg, diffVsAlc: ai.diffVsAlc, allAlc: ai.allAlc,
       allNames: allAlcNames, countryName, countryIso, isCategory: false,
@@ -465,15 +1023,15 @@ function renderDimensionsSection(govData, countryName, allNamesMap) {
 
   // Sub-index labels
   const SUB_LABELS = {
-    'osi': 'Servicios en línea (OSI)',
+    'osi': 'Servicios en l\u00EDnea (OSI)',
     'tii': 'Infraestructura de telecomunicaciones (TII)',
     'hci': 'Capital humano (HCI)',
-    'epi': 'Participación electrónica (EPI)',
-    'cgsi': 'Sistemas Básicos (CGSI)',
+    'epi': 'Participaci\u00F3n electr\u00F3nica (EPI)',
+    'cgsi': 'Sistemas B\u00E1sicos (CGSI)',
     'psdi': 'Portales y Servicios (PSDI)',
     'dcei': 'Habilitadores Digitales (DCEI)',
     'gtei': 'Entorno GovTech (GTEI)',
-    'dd': 'Digital por diseño (DD)',
+    'dd': 'Digital por dise\u00F1o (DD)',
     'id': 'Impulsado por los datos (ID)',
     'gp': 'Gobierno como plataforma (GP)',
     'ad': 'Abierto por defecto (AD)',
@@ -482,8 +1040,8 @@ function renderDimensionsSection(govData, countryName, allNamesMap) {
   };
 
   function formatVal(v) {
-    if (v == null) return '—';
-    return v.toFixed(3);
+    if (v == null) return '\u2014';
+    return formatLocaleNumber(v, 2, false);
   }
 
   function renderTab(tabKey) {
@@ -522,25 +1080,25 @@ function renderDimensionsSection(govData, countryName, allNamesMap) {
       const sc = db.score ?? 0;
       const av = db.alcAvg ?? 0;
       const diff = db.score != null ? (sc - av) : null;
-      let diffStr = '—';
+      let diffStr = '\u2014';
       if (diff != null) {
         // e.g., +0,141 -> Format slightly differently from global numbers if needed 
         // to match mockup we use commas instead of dots if possible, 
         // but formatVal gives dots. Let's use dots for now or replace.
-        const dFmt = Math.abs(diff).toFixed(3).replace('.', ',');
+        const dFmt = formatLocaleNumber(Math.abs(diff), 2, false);
         diffStr = diff >= 0 ? `+${dFmt}` : `-${dFmt}`;
       }
       
-      const scStr = formatVal(sc).replace('.', ',');
-      const avStr = formatVal(av).replace('.', ',');
-      const rankStr = db.rankALC || '—';
+      const scStr = formatVal(sc);
+      const avStr = formatVal(av);
+      const rankStr = db.rankALC || '\u2014';
       const color = DIM_COLORS[idx % DIM_COLORS.length];
 
       listHtml += `
         <div class="dim-row">
           <div class="dim-row-header">
             <div class="dim-row-title" style="color: ${color}">
-              <span class="dim-dot">●</span> ${idx+1} ${SUB_LABELS[k].split(' (')[0]} <span class="dim-row-title-acc">(${k.toUpperCase()})</span>
+              <span class="dim-dot">\u25CF</span> ${idx+1} ${SUB_LABELS[k].split(' (')[0]} <span class="dim-row-title-acc">(${k.toUpperCase()})</span>
             </div>
             <div class="dim-row-score-box">
               <div class="dim-row-score" style="color: ${color}">${scStr}</div>
@@ -552,7 +1110,7 @@ function renderDimensionsSection(govData, countryName, allNamesMap) {
             <div class="dim-row-bar-fill" style="width: ${(sc * 100).toFixed(1)}%; background-color: ${color}"></div>
           </div>
           <div class="dim-row-footer">
-            ALC ${avStr} · Δ ${diffStr} · #${rankStr}/26
+            ALC ${avStr} \u00B7 \u0394 ${diffStr} \u00B7 #${rankStr}
           </div>
         </div>
       `;
@@ -579,13 +1137,13 @@ function renderDimensionsSection(govData, countryName, allNamesMap) {
 
 // ─── Render country info panel ────────────────────────
 function renderCountryInfo(country) {
-  $('#info-flag').textContent   = country.flag;
-  $('#info-name').textContent   = country.name;
-  $('#info-capital').textContent = country.capital;
-  $('#info-currency').textContent = `${country.currency} (${country.currencyCode})`;
+  $('#info-flag').textContent   = getFlagEmoji(country.iso3);
+  $('#info-name').textContent   = fixText(country.name);
+  $('#info-capital').textContent = fixText(country.capital);
+  $('#info-currency').textContent = `${fixText(country.currency)} (${country.currencyCode})`;
   $('#info-exchange').textContent = formatExchangeRate(country.exchangeRate, country.currencyCode);
   $('#info-domain').textContent  = country.domain;
-  $('#info-timezone').textContent = country.timezone;
+  $('#info-timezone').textContent = fixText(country.timezone);
 
   // Update clock immediately, then every second
   updateClock(country.timezone);
@@ -598,16 +1156,10 @@ function renderCountryInfo(country) {
 // ─── Render country banner ────────────────────────────
 function renderBanner(country) {
   // ISO2 code for flag CDN (derive from ISO3)
-  const iso2Map = {
-    ARG:'ar',BOL:'bo',BRA:'br',CHL:'cl',COL:'co',CRI:'cr',DOM:'do',
-    ECU:'ec',SLV:'sv',GTM:'gt',HTI:'ht',HND:'hn',JAM:'jm',MEX:'mx',NIC:'ni',
-    PAN:'pa',PRY:'py',PER:'pe',TTO:'tt',URY:'uy',VEN:'ve',GUY:'gy',SUR:'sr',BLZ:'bz',
-    BHS:'bs',BRB:'bb'
-  };
-  const iso2 = iso2Map[country.iso3] || 'xx';
+  const iso2 = ISO2_BY_ISO3[country.iso3] || 'xx';
   bannerFlag.src = `https://flagcdn.com/w160/${iso2}.png`;
-  bannerFlag.alt = `Bandera de ${country.name}`;
-  bannerName.textContent = country.name;
+  bannerFlag.alt = `Bandera de ${fixText(country.name)}`;
+  bannerName.textContent = fixText(country.name);
   countryBanner.classList.remove('hidden');
 }
 
@@ -656,30 +1208,31 @@ async function loadCountry(iso) {
     // Add ALC name map for tooltips
     const allNamesMap = {};
     if (countries) { // Assuming 'countries' is the global list of all ALC countries
-      countries.forEach(c => allNamesMap[c.iso3] = c.name);
-      renderGovSection(data.govData, data.country.name, data.country.iso3, allNamesMap);
-      renderDimensionsSection(data.govData, data.country.name, allNamesMap);
+      countries.forEach(c => allNamesMap[c.iso3] = fixText(c.name));
+      renderGovSection(data.govData, fixText(data.country.name), data.country.iso3, allNamesMap);
+      renderDimensionsSection(data.govData, fixText(data.country.name), allNamesMap);
     } else {
-      renderGovSection(data.govData, data.country.name, data.country.iso3, {});
+      renderGovSection(data.govData, fixText(data.country.name), data.country.iso3, {});
     }
   } catch (err) {
     console.error(err);
-    showError('No se pudieron obtener los datos. Inténtalo de nuevo.');
+    showError('No se pudieron obtener los datos. Int\u00E9ntalo de nuevo.');
   }
 }
 
 // ─── D3 Map ───────────────────────────────────────────
 async function initMap() {
   try {
+    await ensureMapLibraries();
     const world = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
     const allCountries = topojson.feature(world, world.objects.countries);
 
-    const latamIds = new Set(Object.keys(COUNTRY_COLORS));
+    const latamIds = new Set(Object.keys(COUNTRY_COLORS).map(normalizeCountryId));
 
     // Separate LATAM vs rest (for context)
-    const latamFeatures = allCountries.features.filter(f => latamIds.has(String(f.id)));
+    const latamFeatures = allCountries.features.filter(f => latamIds.has(normalizeCountryId(f.id)));
     const contextFeatures = allCountries.features.filter(f => {
-      const id = String(f.id);
+      const id = normalizeCountryId(f.id);
       if (latamIds.has(id)) return false;
       // Show nearby countries for context (US, Guiana Fr., etc.)
       // Use a bounding box: lon -120 to -30, lat -60 to 35
@@ -721,10 +1274,10 @@ async function initMap() {
       .join('path')
       .attr('class', 'country-path')
       .attr('d', path)
-      .attr('data-id', d => String(d.id))
-      .style('fill', d => COUNTRY_COLORS[String(d.id)] || '#2c5282')
+      .attr('data-id', d => normalizeCountryId(d.id))
+      .style('fill', d => COUNTRY_COLORS[normalizeCountryId(d.id)] || '#2c5282')
       .on('click', (event, d) => {
-        const numId = String(d.id);
+        const numId = normalizeCountryId(d.id);
         const iso = numericToIso[numId];
         if (iso) loadCountry(iso);
       });
@@ -734,24 +1287,26 @@ async function initMap() {
       .data(latamFeatures)
       .join('text')
       .attr('class', d => {
-        const cfg = LABEL_CONFIG[String(d.id)];
+        const cfg = LABEL_CONFIG[normalizeCountryId(d.id)];
         return `country-label${cfg && cfg.small ? ' small-label' : ''}`;
       })
       .attr('x', d => {
         const c = path.centroid(d);
-        const cfg = LABEL_CONFIG[String(d.id)];
+        const cfg = LABEL_CONFIG[normalizeCountryId(d.id)];
         return c[0] + (cfg ? cfg.dx : 0);
       })
       .attr('y', d => {
         const c = path.centroid(d);
-        const cfg = LABEL_CONFIG[String(d.id)];
+        const cfg = LABEL_CONFIG[normalizeCountryId(d.id)];
         return c[1] + (cfg ? cfg.dy : 0);
       })
-      .text(d => COUNTRY_NAMES_ES[String(d.id)] || '');
+      .text(d => fixText(COUNTRY_NAMES_ES[normalizeCountryId(d.id)] || ''));
 
   } catch (err) {
     console.error('Error loading map:', err);
-    mapPlaceholder.innerHTML = '<p style="color:#f87171">Error al cargar el mapa</p>';
+    if (mapPlaceholder) {
+      mapPlaceholder.innerHTML = '<p style="color:#f87171">Error al cargar el mapa</p>';
+    }
   }
 }
 
@@ -782,7 +1337,7 @@ async function init() {
     countries.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.iso3;
-      opt.textContent = `${c.flag}  ${c.name}`;
+      opt.textContent = `${getFlagEmoji(c.iso3)}  ${fixText(c.name)}`;
       selectEl.appendChild(opt);
     });
   } catch (err) {

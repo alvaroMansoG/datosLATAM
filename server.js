@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const config = require('./config');
 
 const app = express();
 const PORT = 3000;
@@ -16,10 +17,21 @@ function getCached(key) {
 function setCache(key, data) {
   cache.set(key, { data, ts: Date.now() });
 }
+function getTimedCache(store, key, ttl) {
+  const entry = store.get(key);
+  if (entry && Date.now() - entry.ts < ttl) return entry.data;
+  return null;
+}
+function setTimedCache(store, key, data) {
+  store.set(key, { data, ts: Date.now() });
+}
 
 // ─── Exchange rate cache (30 min) ──────────────────────
 let ratesCache = { data: null, ts: 0 };
 const RATES_TTL = 30 * 60 * 1000;
+let warnedAboutUndpConfig = false;
+const indicatorRegionCache = new Map();
+const INDICATOR_REGION_TTL = 30 * 60 * 1000;
 
 async function getExchangeRates() {
   if (ratesCache.data && Date.now() - ratesCache.ts < RATES_TTL) {
@@ -42,13 +54,22 @@ async function getExchangeRates() {
 const INDICATORS = {
   // Panel 1: Datos Básicos
   population:    { code: 'SP.POP.TOTL',      label: 'Población total',                    icon: '👥', category: 'basic',        format: 'number'   },
-  gdpPerCapita:  { code: 'NY.GDP.PCAP.CD',    label: 'PIB per cápita (USD)',               icon: '💰', category: 'basic',        format: 'currency' },
-  hdi:           { code: 'UNDP.HDI',          label: 'Índice de Desarrollo Humano (0-1)',  icon: '🎓', category: 'basic',        format: 'decimal'  },
+  laborForce:    { code: 'SL.TLF.TOTL.IN',   label: 'Fuerza laboral total',               icon: '🧑‍💼', category: 'basic',        format: 'number', embeddedIn: 'population' },
+  unemployment:  { code: 'SL.UEM.TOTL.ZS',   label: 'Desempleo total',                    icon: '📉', category: 'basic',        format: 'percent', embeddedIn: 'population' },
+  gdpTotal:      { code: 'NY.GDP.MKTP.CD',   label: 'PIB (USD corrientes)',               icon: '🏛️', category: 'basic',        format: 'currency' },
+  gdpPerCapita:  { code: 'NY.GDP.PCAP.CD',   label: 'PIB per cápita (USD)',               icon: '💰', category: 'basic',        format: 'currency', embeddedIn: 'gdpTotal' },
+  gdpGrowth:     { code: 'NY.GDP.MKTP.KD.ZG', label: 'Crecimiento del PIB',               icon: '📈', category: 'basic',        format: 'percent', embeddedIn: 'gdpTotal' },
+  hdi:           { code: 'UNDP.HDI',          label: 'Índice de Desarrollo Humano (0-1)',  icon: '🎓', category: 'basic',        format: 'decimal', embeddedIn: 'population' },
+  gini:          { code: 'SI.POV.GINI',      label: 'Índice de Gini',                     icon: '⚖️', category: 'basic',        format: 'decimal', embeddedIn: 'gdpTotal' },
 
   // Panel 2: Conectividad
-  internetUsers: { code: 'IT.NET.USER.ZS',    label: 'Usuarios de Internet (% población)', icon: '🌐', category: 'connectivity', format: 'percent'  },
-  mobileSubs:    { code: 'IT.CEL.SETS.P2',    label: 'Celulares por cada 100 hab.',        icon: '📱', category: 'connectivity', format: 'decimal'  },
+  internetUsers: { code: 'ITU_DH_INT_USER_PT', label: 'Personas usuarias de internet',      icon: '🌐', category: 'connectivity', format: 'percent', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH' },
+  householdInternet: { code: 'ITU_DH_HH_INT', label: 'Hogares con internet',                icon: '🏠', category: 'connectivity', format: 'percent', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH' },
+  mobileSubs:    { code: 'ITU_DH_MOB_SUB_PER_100', label: 'Celulares por cada 100 hab.',    icon: '📱', category: 'connectivity', format: 'decimal', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH', fallbackCode: 'IT.CEL.SETS.P2' },
   broadband:     { code: 'IT.NET.BBND.P2',    label: 'Banda ancha fija por 100 hab.',      icon: '📡', category: 'connectivity', format: 'decimal'  },
+  coverage5g:    { code: 'ITU_DH_POP_COV_5G', label: 'Cobertura 5G (% población)',         icon: '📶', category: 'connectivity', format: 'percent', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH' },
+  coverage4g:    { code: 'ITU_DH_POP_COV_4G', label: 'Cobertura 4G (% población)',         icon: '📶', category: 'connectivity', format: 'percent', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH' },
+  coverage3g:    { code: 'ITU_DH_POP_COV_3G', label: 'Cobertura 3G (% población)',         icon: '📶', category: 'connectivity', format: 'percent', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH' },
   
   // Panel 3: Servicios Financieros Digitales
   findexBuy:     { code: 'FIN26B',            label: 'Compró en línea (móvil/internet)',   icon: '🛒', category: 'findex',       format: 'percent'  },
@@ -56,6 +77,9 @@ const INDICATORS = {
   findexBalance: { code: 'FIN9B',             label: 'Consultó saldo (móvil/internet)',    icon: '🏦', category: 'findex',       format: 'percent'  },
   findexMadePay: { code: 'g20.made',          label: 'Realizó un pago digital',            icon: '💸', category: 'findex',       format: 'percent'  },
   findexRecvPay: { code: 'g20.received',      label: 'Recibió un pago digital',            icon: '📥', category: 'findex',       format: 'percent'  },
+  digitalServicesExports: { code: 'UNCTAD_DE_DIG_SERVTRADE_ANN_EXP', label: 'Exportaciones de servicios digitales', icon: '🌍', category: 'findex', format: 'millionUsd', source: 'UNCTAD vía Data360 del Banco Mundial', databaseId: 'UNCTAD_DE' },
+  ictPatents:    { code: 'WIPO_ICT_PAT_PUB_TOT', label: 'Publicaciones de patentes TIC',   icon: '💡', category: 'findex',       format: 'number', source: 'WIPO vía Data360 del Banco Mundial', databaseId: 'WIPO_ICT' },
+  stemGraduates: { code: 'UNESCO_UIS_GRAD_STEM', label: 'Graduados STEM en educación terciaria', icon: '🧪', category: 'findex', format: 'percent', source: 'UNESCO UIS vía Data360 del Banco Mundial', databaseId: 'UNESCO_UIS' },
 };
 
 // ─── Static E-Government Indices (UN EGDI 2024 + GTMI 2025 + GCI 2024) ───
@@ -233,6 +257,11 @@ const COUNTRIES = [
 ];
 
 // ─── Fetch single indicator from World Bank ───────────
+const REGION_COUNTRY_COUNT = COUNTRIES.length;
+const REGION_ISO_CODES = COUNTRIES.map(country => country.iso3);
+const WORLD_BANK_REGION_COUNTRY_PATH = REGION_ISO_CODES.join(';');
+const UNDP_REGION_COUNTRY_LIST = REGION_ISO_CODES.join(',');
+
 async function fetchIndicator(isoCode, indicatorCode) {
   const url = `https://api.worldbank.org/v2/country/${isoCode}/indicator/${indicatorCode}?format=json&mrv=1`;
   const res = await fetch(url);
@@ -242,6 +271,221 @@ async function fetchIndicator(isoCode, indicatorCode) {
   }
   const entry = json[1][0];
   return { value: entry.value, date: entry.date };
+}
+
+function toFiniteNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string') return null;
+
+  const normalized = value.trim().replace(/,/g, '');
+  if (!normalized || normalized === '..' || normalized.toLowerCase() === 'n/a') {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildIndicatorRanking(valuesByIso) {
+  const sorted = Object.entries(valuesByIso)
+    .filter(([, entry]) => entry && entry.value != null)
+    .sort((a, b) => b[1].value - a[1].value);
+
+  return Object.fromEntries(sorted.map(([iso], index) => [iso, index + 1]));
+}
+
+function getRegionFallbackRankings(indicatorKey) {
+  if (indicatorKey !== 'hdi') {
+    return { byIso: {}, rankMap: {} };
+  }
+
+  const byIso = Object.fromEntries(
+    REGION_ISO_CODES.map(iso => [
+      iso,
+      GOV_DATA[iso]?.hdi != null
+        ? { value: GOV_DATA[iso].hdi, date: '2023', source: 'PNUD (fallback estatico local)' }
+        : { value: null, date: null, source: 'PNUD (fallback estatico local)' }
+    ])
+  );
+
+  return {
+    byIso,
+    rankMap: buildIndicatorRanking(byIso),
+  };
+}
+
+async function fetchWorldBankRegionIndicator(indicatorCode) {
+  const cacheKey = `wb:${indicatorCode}`;
+  const cached = getTimedCache(indicatorRegionCache, cacheKey, INDICATOR_REGION_TTL);
+  if (cached) return cached;
+
+  const url = `https://api.worldbank.org/v2/country/${WORLD_BANK_REGION_COUNTRY_PATH}/indicator/${indicatorCode}?format=json&mrv=5&per_page=500`;
+  const res = await fetch(url);
+  const json = await res.json();
+  const rows = Array.isArray(json) && Array.isArray(json[1]) ? json[1] : [];
+  const byIso = Object.fromEntries(
+    REGION_ISO_CODES.map(iso => [iso, { value: null, date: null, source: 'Banco Mundial' }])
+  );
+
+  for (const row of rows) {
+    const iso = row?.countryiso3code;
+    if (!iso || !Object.prototype.hasOwnProperty.call(byIso, iso)) continue;
+    if (byIso[iso].value != null) continue;
+    if (row.value == null) continue;
+
+    byIso[iso] = {
+      value: row.value,
+      date: row.date ?? null,
+      source: 'Banco Mundial',
+    };
+  }
+
+  const data = {
+    byIso,
+    rankMap: buildIndicatorRanking(byIso),
+  };
+  setTimedCache(indicatorRegionCache, cacheKey, data);
+  return data;
+}
+
+async function fetchData360RegionIndicator(databaseId, indicatorId, fallbackIndicatorCode = null, sourceLabel = 'Data360 del Banco Mundial') {
+  const cacheKey = `data360:${databaseId}:${indicatorId}`;
+  const cached = getTimedCache(indicatorRegionCache, cacheKey, INDICATOR_REGION_TTL);
+  if (cached) return cached;
+
+  try {
+    const res = await fetch('https://data360api.worldbank.org/data360/data', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        database_id: databaseId,
+        indicator_id: indicatorId,
+        ref_area: REGION_ISO_CODES,
+        isLatestData: true,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const json = await res.json();
+    const rows = Array.isArray(json?.value) ? json.value : [];
+    const byIso = Object.fromEntries(
+      REGION_ISO_CODES.map(iso => [iso, { value: null, date: null, source: sourceLabel }])
+    );
+
+    for (const row of rows) {
+      const iso = String(row?.REF_AREA || '').toUpperCase();
+      if (!Object.prototype.hasOwnProperty.call(byIso, iso)) continue;
+      if (String(row?.SEX || '_T') !== '_T') continue;
+      if (String(row?.AGE || '_T') !== '_T') continue;
+      if (String(row?.URBANISATION || '_T') !== '_T') continue;
+      if (!['_Z', '_T', '', 'null', 'undefined'].includes(String(row?.COMP_BREAKDOWN_1 ?? '_Z'))) continue;
+      if (!['_Z', '_T', '', 'null', 'undefined'].includes(String(row?.COMP_BREAKDOWN_2 ?? '_Z'))) continue;
+      if (!['_Z', '_T', '', 'null', 'undefined'].includes(String(row?.COMP_BREAKDOWN_3 ?? '_Z'))) continue;
+
+      const value = toFiniteNumber(row?.OBS_VALUE);
+      const date = row?.TIME_PERIOD ? String(row.TIME_PERIOD) : null;
+      if (value == null || !date) continue;
+
+      const currentDate = byIso[iso].date;
+      if (currentDate && currentDate >= date) continue;
+
+      byIso[iso] = {
+        value,
+        date,
+        source: sourceLabel,
+      };
+    }
+
+    const data = {
+      byIso,
+      rankMap: buildIndicatorRanking(byIso),
+    };
+    setTimedCache(indicatorRegionCache, cacheKey, data);
+    return data;
+  } catch (err) {
+    if (!fallbackIndicatorCode) throw err;
+    console.warn(`Data360 fallback para ${indicatorId}: ${err.message}`);
+    return fetchWorldBankRegionIndicator(fallbackIndicatorCode);
+  }
+}
+
+async function fetchUndpRegionIndicator(indicatorCode) {
+  const cacheKey = `undp:${indicatorCode.toUpperCase()}`;
+  const cached = getTimedCache(indicatorRegionCache, cacheKey, INDICATOR_REGION_TTL);
+  if (cached) return cached;
+
+  const { apiKey, baseUrl, years } = config.undp;
+  if (!apiKey) {
+    if (!warnedAboutUndpConfig) {
+      warnedAboutUndpConfig = true;
+      console.warn('PNUD API key no configurada en config.local.json o PNUD_API_KEY; se usara el fallback estatico para IDH.');
+    }
+    const fallback = getRegionFallbackRankings(indicatorCode.toLowerCase());
+    setTimedCache(indicatorRegionCache, cacheKey, fallback);
+    return fallback;
+  }
+
+  const byIso = Object.fromEntries(
+    REGION_ISO_CODES.map(iso => [iso, { value: null, date: null, source: 'PNUD API' }])
+  );
+  const targetIndicatorCode = indicatorCode.toUpperCase();
+
+  for (const year of years) {
+    const url = new URL(`${baseUrl.replace(/\/$/, '')}/CompositeIndices/query`);
+    url.searchParams.set('apikey', apiKey);
+    url.searchParams.set('countryOrAggregation', UNDP_REGION_COUNTRY_LIST);
+    url.searchParams.set('year', String(year));
+    url.searchParams.set('indicator', indicatorCode.toLowerCase());
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        console.error(`Error PNUD ${indicatorCode} ${year}: HTTP ${res.status}`);
+        continue;
+      }
+
+      const rows = await res.json();
+      if (!Array.isArray(rows)) continue;
+
+      for (const row of rows) {
+        const iso = String(row?.country || '').split(' - ')[0]?.trim()?.toUpperCase();
+        const rowIndicatorCode = String(row?.indicator || '').split(' - ')[0]?.trim()?.toUpperCase();
+        const value = toFiniteNumber(row?.value);
+
+        if (!iso || !Object.prototype.hasOwnProperty.call(byIso, iso)) continue;
+        if (byIso[iso].value != null) continue;
+        if (rowIndicatorCode !== targetIndicatorCode) continue;
+        if (value == null) continue;
+
+        byIso[iso] = {
+          value,
+          date: row.year ? String(row.year) : String(year),
+          source: 'PNUD API',
+        };
+      }
+    } catch (err) {
+      console.error(`Error fetching ${indicatorCode} from PNUD for ${year}:`, err.message);
+    }
+  }
+
+  if (indicatorCode.toLowerCase() === 'hdi') {
+    const fallback = getRegionFallbackRankings('hdi').byIso;
+    for (const iso of REGION_ISO_CODES) {
+      if (byIso[iso].value == null && fallback[iso]?.value != null) {
+        byIso[iso] = fallback[iso];
+      }
+    }
+  }
+
+  const data = {
+    byIso,
+    rankMap: buildIndicatorRanking(byIso),
+  };
+  setTimedCache(indicatorRegionCache, cacheKey, data);
+  return data;
 }
 
 // ─── API: country list ────────────────────────────────
@@ -267,9 +511,15 @@ app.get('/api/country/:iso', async (req, res) => {
   try {
     // Fetch indicators + exchange rates in parallel
     const entries = Object.entries(INDICATORS).filter(([key]) => key !== 'hdi');
-    const [ratesResult, ...indicatorResults] = await Promise.allSettled([
+    const [ratesResult, hdiRegionResult, ...indicatorRegionResults] = await Promise.allSettled([
       getExchangeRates(),
-      ...entries.map(([, def]) => fetchIndicator(iso, def.code)),
+      fetchUndpRegionIndicator('hdi'),
+      ...entries.map(([, def]) => {
+        if (def.databaseId) {
+          return fetchData360RegionIndicator(def.databaseId, def.code, def.fallbackCode, def.source);
+        }
+        return fetchWorldBankRegionIndicator(def.code);
+      }),
     ]);
 
     const rates = ratesResult.status === 'fulfilled' ? ratesResult.value : {};
@@ -278,7 +528,10 @@ app.get('/api/country/:iso', async (req, res) => {
     const gci = getGciData(iso);
     const egdiGroup = getEgdiGroup(govStatic.egdi);
     const gtmiGroup = govStatic.gtmi || null;
-    const gtmiScore = gtmiGroup ? { A: 1.0, B: 0.7, C: 0.4, D: 0.15 }[gtmiGroup] : null;
+    const hdiRegionData = hdiRegionResult.status === 'fulfilled'
+      ? hdiRegionResult.value
+      : getRegionFallbackRankings('hdi');
+    const hdiEntry = hdiRegionData.byIso[iso] || { value: null, date: null, source: 'PNUD API' };
 
     const data = {
       country: {
@@ -298,16 +551,29 @@ app.get('/api/country/:iso', async (req, res) => {
     };
 
     entries.forEach(([key, def], i) => {
-      const result = indicatorResults[i];
-      const val = result.status === 'fulfilled' ? result.value : { value: null, date: null };
-      data.indicators[key] = { ...def, value: val.value, date: val.date };
+      const result = indicatorRegionResults[i];
+      const regionData = result.status === 'fulfilled'
+        ? result.value
+        : { byIso: {}, rankMap: {} };
+      const entry = regionData.byIso[iso] || { value: null, date: null, source: null };
+      data.indicators[key] = {
+        ...def,
+        value: entry.value,
+        date: entry.date,
+        source: entry.source || def.source || 'Banco Mundial',
+        rankALC: regionData.rankMap[iso] ?? null,
+        totalALC: REGION_COUNTRY_COUNT,
+      };
     });
 
-    // Static overwrite for HDI
+    // HDI from PNUD API, with static fallback while local config is missing or the API has no data
     data.indicators['hdi'] = {
       ...INDICATORS.hdi,
-      value: govStatic.hdi ?? null,
-      date: '2023'
+      value: hdiEntry.value ?? govStatic.hdi ?? null,
+      date: hdiEntry.date ?? '2023',
+      source: hdiEntry.source || 'PNUD API',
+      rankALC: hdiRegionData.rankMap[iso] ?? ALC_GOV_STATS.hdiRankALC[iso] ?? null,
+      totalALC: REGION_COUNTRY_COUNT,
     };
 
     // ── Rich E-Government block ──
@@ -390,7 +656,21 @@ app.get('/api/country/:iso', async (req, res) => {
 });
 
 // ─── Static files ─────────────────────────────────────
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return;
+    }
+    if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      return;
+    }
+    if (filePath.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    }
+  }
+}));
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor activo en http://localhost:${PORT}`);

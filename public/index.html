@@ -3,36 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Desarrollo Digital LATAM — Dashboard de Indicadores</title>
-  <meta name="description" content="Panel de indicadores de desarrollo digital y socioeconómico para países de Latinoamérica. Datos del Banco Mundial." />
+  <title>Desarrollo Digital LATAM &mdash; Dashboard de Indicadores</title>
+  <meta name="description" content="Panel de indicadores de desarrollo digital y socioecon&oacute;mico para pa&iacute;ses de Latinoam&eacute;rica. Datos del Banco Mundial." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-
   <div class="app-layout">
-
-    <!-- ═══ LEFT SIDEBAR ═══ -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <span class="sidebar-logo">🌎</span>
+        <span class="sidebar-logo">&#x1F30E;</span>
         <div>
           <h1 class="sidebar-title">Desarrollo Digital <span class="gradient-text">LATAM</span></h1>
           <p class="sidebar-subtitle">Indicadores en tiempo real</p>
         </div>
       </div>
 
-      <!-- Interactive map -->
       <div class="map-container" id="map-container">
         <div class="map-placeholder" id="map-placeholder">
           <div class="loader-spinner"></div>
-          <p>Cargando mapa…</p>
+          <p>Cargando mapa&hellip;</p>
         </div>
       </div>
 
-      <!-- Country info panel (hidden until selection) -->
       <div class="country-info hidden" id="country-info">
         <div class="info-header">
           <span class="info-flag" id="info-flag"></span>
@@ -40,14 +35,14 @@
         </div>
         <div class="info-rows">
           <div class="info-row">
-            <span class="info-icon">🏛️</span>
+            <span class="info-icon">&#x1F3DB;&#xFE0F;</span>
             <div>
               <span class="info-label">CAPITAL</span>
               <span class="info-value" id="info-capital"></span>
             </div>
           </div>
           <div class="info-row">
-            <span class="info-icon">🕐</span>
+            <span class="info-icon">&#x1F550;</span>
             <div>
               <span class="info-label">ZONA HORARIA</span>
               <span class="info-value" id="info-time"></span>
@@ -55,21 +50,21 @@
             </div>
           </div>
           <div class="info-row">
-            <span class="info-icon">💱</span>
+            <span class="info-icon">&#x1F4B1;</span>
             <div>
               <span class="info-label">MONEDA</span>
               <span class="info-value" id="info-currency"></span>
             </div>
           </div>
           <div class="info-row">
-            <span class="info-icon">💵</span>
+            <span class="info-icon">&#x1F4B5;</span>
             <div>
-              <span class="info-label">CAMBIO CON EL DÓLAR</span>
+              <span class="info-label">CAMBIO CON EL D&Oacute;LAR</span>
               <span class="info-value" id="info-exchange"></span>
             </div>
           </div>
           <div class="info-row">
-            <span class="info-icon">🌐</span>
+            <span class="info-icon">&#x1F310;</span>
             <div>
               <span class="info-label">DOMINIO DE INTERNET</span>
               <span class="info-value" id="info-domain"></span>
@@ -79,97 +74,83 @@
       </div>
 
       <div class="sidebar-footer">
-        <p>Fuente: <a href="https://data.worldbank.org/" target="_blank" rel="noopener">Banco Mundial</a> · <a href="https://www.exchangerate-api.com/" target="_blank" rel="noopener">ExchangeRate-API</a></p>
+        <p>Fuente: <a href="https://data.worldbank.org/" target="_blank" rel="noopener">Banco Mundial</a> &middot; <a href="https://www.exchangerate-api.com/" target="_blank" rel="noopener">ExchangeRate-API</a></p>
       </div>
     </aside>
 
-    <!-- ═══ MAIN CONTENT ═══ -->
     <main class="main-content" id="main-content">
-
-      <!-- Top bar with country selector -->
       <header class="main-header" id="main-header">
         <div class="header-left">
-          <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Abrir menú">☰</button>
-          <p class="header-hint">Selecciona un país en el mapa o aquí:</p>
+          <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Abrir men&uacute;">&#9776;</button>
+          <p class="header-hint">Selecciona un pa&iacute;s en el mapa o aqu&iacute;:</p>
         </div>
         <div class="select-wrapper">
           <select id="country-select" class="country-select">
-            <option value="">— Elige un país —</option>
+            <option value="">&mdash; Elige un pa&iacute;s &mdash;</option>
           </select>
-          <span class="select-arrow">▾</span>
+          <span class="select-arrow">&#9662;</span>
         </div>
       </header>
 
-      <!-- Country banner (shown after selection) -->
       <div class="country-banner hidden" id="country-banner">
         <img class="banner-flag" id="banner-flag" alt="" />
         <h2 class="banner-name" id="banner-name"></h2>
       </div>
 
-      <!-- Loading state -->
       <div class="loader hidden" id="loader">
         <div class="loader-spinner"></div>
-        <p>Consultando datos del Banco Mundial…</p>
+        <p>Consultando datos del Banco Mundial&hellip;</p>
       </div>
 
-      <!-- Empty state -->
       <div class="empty-state" id="empty-state">
-        <span class="empty-icon">🗺️</span>
-        <h2>Selecciona un país</h2>
-        <p>Haz clic en un país del mapa o usa el selector para ver sus indicadores de desarrollo.</p>
+        <span class="empty-icon">&#x1F5FA;&#xFE0F;</span>
+        <h2>Selecciona un pa&iacute;s</h2>
+        <p>Haz clic en un pa&iacute;s del mapa o usa el selector para ver sus indicadores de desarrollo.</p>
       </div>
 
-      <!-- Country indicators (hidden until selection) -->
       <div class="indicators-wrapper hidden" id="indicators-wrapper">
         <section class="card-grid" id="basic-section">
           <div class="section-header">
-            <h3 class="section-title">Datos Básicos</h3>
-            <p class="section-subtitle">Población, PIB per cápita e Índice de Desarrollo Humano (HDI)</p>
+            <h3 class="section-title">Datos demogr&aacute;ficos y macroecon&oacute;micos</h3>
           </div>
           <div class="cards" id="basic-cards"></div>
+          <p class="section-links" id="basic-links"></p>
         </section>
-        
-        <!-- Connectivity -->
+
         <section class="card-grid" id="connectivity-section">
           <div class="section-header">
             <h3 class="section-title">Conectividad</h3>
             <p class="section-subtitle">Usuarios de Internet, Celulares y Banda Ancha</p>
           </div>
           <div class="cards" id="connectivity-cards"></div>
+          <p class="section-links" id="connectivity-links"></p>
         </section>
-        <!-- Findex Services -->
+
         <section class="card-grid" id="findex-section">
           <div class="section-header">
-            <h3 class="section-title">Servicios Financieros Digitales</h3>
-            <p class="section-subtitle">Global Findex 2025 · Fuente: Banco Mundial</p>
+            <h3 class="section-title">Econom&iacute;a y talento digital</h3>
           </div>
           <div class="cards" id="findex-cards"></div>
         </section>
-        <!-- E-Government Indices -->
+
         <section class="gov-indices-section" id="gov-section">
           <div class="section-header">
-            <h3 class="section-title">Índices de Desarrollo Digital del Gobierno</h3>
-            <p class="section-subtitle">Oxford AI Readiness · ITU GCI · OCDE/BID Gov Digital · Banco Mundial GTMI · ONU EGDI</p>
+            <h3 class="section-title">&Iacute;ndices de Desarrollo Digital del Gobierno</h3>
+            <p class="section-subtitle">Oxford AI Readiness &middot; ITU GCI &middot; OCDE/BID Gov Digital &middot; Banco Mundial GTMI &middot; ONU EGDI</p>
           </div>
           <div class="gov-layout">
-            <!-- Radar Chart -->
             <div class="gov-radar-wrap">
               <canvas id="govRadarChart"></canvas>
             </div>
-            <!-- Index Cards -->
-            <div class="gov-index-cards" id="gov-index-cards">
-              <!-- populated by JS -->
-            </div>
+            <div class="gov-index-cards" id="gov-index-cards"></div>
           </div>
         </section>
 
-        <!-- Dimensions / Sub-indices -->
         <section class="gov-dimensions-section" id="gov-dimensions-section" style="display:none;">
           <div class="section-header">
-            <h3 class="section-title">Dimensiones · Desglose por áreas de evaluación</h3>
+            <h3 class="section-title">Dimensiones &middot; Desglose por &aacute;reas de evaluaci&oacute;n</h3>
           </div>
           <div class="gov-dim-container">
-            <!-- Tabs -->
             <div class="gov-dim-tabs" id="gov-dim-tabs">
               <button class="dim-tab active" data-index="egdi">
                 <span class="dim-tab-title">EGDI</span>
@@ -188,41 +169,34 @@
                 <span class="dim-tab-sub">Gov. Digital</span>
               </button>
             </div>
-            
+
             <div id="gov-dim-content">
               <div class="dim-list-header">
-                <span class="dim-label-sm">PUNTUACIONES POR DIMENSIÓN</span>
+                <span class="dim-label-sm">PUNTUACIONES POR DIMENSI&Oacute;N</span>
                 <div class="dim-header-right">
                   <span id="dim-active-index-name" class="dim-active-index-name">GTMI</span>
                   <span class="dim-source-link">Abrir fuente</span>
                 </div>
               </div>
-              <div class="dim-list-container" id="dim-list-container">
-                <!-- populated by JS -->
-              </div>
+              <div class="dim-list-container" id="dim-list-container"></div>
             </div>
 
-            <!-- Empty State for GCI -->
             <div id="gov-dim-empty" style="display: none; padding: 3rem; text-align: center; color: var(--text-secondary);">
-              El desglose por dimensiones no está disponible para este índice.
+              El desglose por dimensiones no est&aacute; disponible para este &iacute;ndice.
             </div>
           </div>
         </section>
       </div>
 
-
-      <!-- Error -->
       <div class="error hidden" id="error">
-        <span class="error-icon">⚠️</span>
+        <span class="error-icon">&#9888;&#xFE0F;</span>
         <p id="error-msg">Error al obtener los datos.</p>
       </div>
     </main>
   </div>
 
-  <!-- D3.js + TopoJSON from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
-  <!-- Chart.js for radar -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="app.js"></script>
 </body>
