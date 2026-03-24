@@ -22,6 +22,10 @@
       </div>
 
       <div class="map-container" id="map-container">
+        <button type="button" class="map-region-trigger" id="map-region-trigger" aria-label="Ver agregado regional de América Latina y el Caribe" title="América Latina y el Caribe">
+          <span class="map-region-trigger-icon" aria-hidden="true">&#x1F30E;</span>
+          <span class="map-region-trigger-text">ALC</span>
+        </button>
         <div class="map-placeholder" id="map-placeholder">
           <div class="loader-spinner"></div>
           <p>Cargando mapa&hellip;</p>
@@ -31,9 +35,22 @@
       <div class="country-info hidden" id="country-info">
         <div class="info-header">
           <span class="info-flag" id="info-flag"></span>
-          <h2 class="info-name" id="info-name"></h2>
+          <div class="info-title-group">
+            <h2 class="info-name" id="info-name"></h2>
+            <div class="info-meta-block" id="info-meta-block">
+              <div class="info-meta-line">
+                <span class="info-meta-label">Regi&oacute;n</span>
+                <span class="info-meta-value" id="info-subregion"></span>
+              </div>
+              <div class="info-meta-line">
+                <span class="info-meta-label">Nivel de ingresos</span>
+                <span class="info-meta-value" id="info-income-level"></span>
+              </div>
+            </div>
+            <div class="region-country-strip hidden" id="info-region-flags"></div>
+          </div>
         </div>
-        <div class="info-rows">
+        <div class="info-rows" id="info-rows">
           <div class="info-row">
             <span class="info-icon">&#x1F3DB;&#xFE0F;</span>
             <div>
@@ -70,6 +87,13 @@
               <span class="info-value" id="info-domain"></span>
             </div>
           </div>
+          <div class="info-row info-row-neighbors">
+            <span class="info-icon">&#x1F5FA;&#xFE0F;</span>
+            <div>
+              <span class="info-label">PA&Iacute;SES LIM&Iacute;TROFES</span>
+              <div class="info-neighbors" id="info-neighbors"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -82,19 +106,38 @@
       <header class="main-header" id="main-header">
         <div class="header-left">
           <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Abrir men&uacute;">&#9776;</button>
-          <p class="header-hint">Selecciona un pa&iacute;s en el mapa o aqu&iacute;:</p>
         </div>
-        <div class="select-wrapper">
-          <select id="country-select" class="country-select">
+        <div class="header-right">
+          <p class="header-hint">Selecciona un pa&iacute;s en el mapa o aqu&iacute;:</p>
+          <div class="select-wrapper country-picker" id="country-picker">
+          <select id="country-select" class="country-select country-select-hidden" aria-hidden="true" tabindex="-1">
             <option value="">&mdash; Elige un pa&iacute;s &mdash;</option>
           </select>
-          <span class="select-arrow">&#9662;</span>
+          <button type="button" class="country-picker-trigger" id="country-picker-trigger" aria-haspopup="dialog" aria-expanded="false">
+            <span class="country-picker-trigger-text" id="country-picker-trigger-text">&mdash; Elige un pa&iacute;s &mdash;</span>
+            <span class="country-picker-trigger-arrow">&#9662;</span>
+          </button>
+          <div class="country-picker-panel hidden" id="country-picker-panel"></div>
+        </div>
         </div>
       </header>
 
       <div class="country-banner hidden" id="country-banner">
         <img class="banner-flag" id="banner-flag" alt="" />
-        <h2 class="banner-name" id="banner-name"></h2>
+        <div class="banner-title-group">
+          <h2 class="banner-name" id="banner-name"></h2>
+          <div class="banner-meta-block" id="banner-meta-block">
+            <div class="banner-meta-line">
+              <span class="banner-meta-label">Regi&oacute;n</span>
+              <span class="banner-meta-value" id="banner-subregion"></span>
+            </div>
+            <div class="banner-meta-line">
+              <span class="banner-meta-label">Nivel de ingresos</span>
+              <span class="banner-meta-value" id="banner-income-level"></span>
+            </div>
+          </div>
+          <div class="region-country-strip hidden" id="banner-region-flags"></div>
+        </div>
       </div>
 
       <div class="loader hidden" id="loader">
@@ -120,7 +163,6 @@
         <section class="card-grid" id="connectivity-section">
           <div class="section-header">
             <h3 class="section-title">Conectividad</h3>
-            <p class="section-subtitle">Usuarios de Internet, Celulares y Banda Ancha</p>
           </div>
           <div class="cards" id="connectivity-cards"></div>
           <p class="section-links" id="connectivity-links"></p>
@@ -131,6 +173,7 @@
             <h3 class="section-title">Econom&iacute;a y talento digital</h3>
           </div>
           <div class="cards" id="findex-cards"></div>
+          <p class="section-links" id="findex-links"></p>
         </section>
 
         <section class="gov-indices-section" id="gov-section">

@@ -32,6 +32,10 @@ const RATES_TTL = 30 * 60 * 1000;
 let warnedAboutUndpConfig = false;
 const indicatorRegionCache = new Map();
 const INDICATOR_REGION_TTL = 30 * 60 * 1000;
+const countryMetadataCache = new Map();
+const COUNTRY_METADATA_TTL = 24 * 60 * 60 * 1000;
+const REGION_AGGREGATE_ISO = 'ALC';
+const REGION_AGGREGATE_NAME = 'América Latina y el Caribe';
 
 async function getExchangeRates() {
   if (ratesCache.data && Date.now() - ratesCache.ts < RATES_TTL) {
@@ -48,6 +52,38 @@ async function getExchangeRates() {
     console.error('Error fetching exchange rates:', err.message);
   }
   return ratesCache.data || {};
+}
+
+function translateWorldBankIncomeLevel(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  const labels = {
+    'high income': 'Ingreso alto',
+    'upper middle income': 'Ingreso medio alto',
+    'lower middle income': 'Ingreso medio bajo',
+    'low income': 'Ingreso bajo',
+  };
+  return labels[normalized] || value || null;
+}
+
+async function fetchWorldBankCountryMetadata(isoCode) {
+  const cacheKey = `wb-country:${isoCode}`;
+  const cached = getTimedCache(countryMetadataCache, cacheKey, COUNTRY_METADATA_TTL);
+  if (cached) return cached;
+
+  try {
+    const url = `https://api.worldbank.org/v2/country/${isoCode}?format=json`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const entry = Array.isArray(json) && Array.isArray(json[1]) ? json[1][0] : null;
+    const metadata = {
+      incomeLevel: translateWorldBankIncomeLevel(entry?.incomeLevel?.value),
+    };
+    setTimedCache(countryMetadataCache, cacheKey, metadata);
+    return metadata;
+  } catch (err) {
+    console.error(`Error fetching World Bank country metadata for ${isoCode}:`, err.message);
+    return { incomeLevel: null };
+  }
 }
 
 // ─── World Bank indicators ────────────────────────────
@@ -256,11 +292,287 @@ const COUNTRIES = [
   { iso3: 'TTO', name: 'Trinidad y Tobago',    flag: '🇹🇹', numericId: '780', capital: 'Puerto España',      timezone: 'America/Port_of_Spain',          currency: 'Dólar trinitense',      currencyCode: 'TTD', domain: '.tt', phoneCode: '+1-868' },
 ];
 
+const BID_REGION_BY_ISO = {
+  ARG: 'Cono Sur',
+  BRA: 'Cono Sur',
+  CHL: 'Cono Sur',
+  PRY: 'Cono Sur',
+  URY: 'Cono Sur',
+  BOL: 'Grupo Andino',
+  COL: 'Grupo Andino',
+  ECU: 'Grupo Andino',
+  PER: 'Grupo Andino',
+  VEN: 'Grupo Andino',
+  BLZ: 'Centroamérica y México',
+  CRI: 'Centroamérica y México',
+  SLV: 'Centroamérica y México',
+  GTM: 'Centroamérica y México',
+  HND: 'Centroamérica y México',
+  MEX: 'Centroamérica y México',
+  NIC: 'Centroamérica y México',
+  PAN: 'Centroamérica y México',
+  BHS: 'Caribe',
+  BRB: 'Caribe',
+  GUY: 'Caribe',
+  JAM: 'Caribe',
+  SUR: 'Caribe',
+  TTO: 'Caribe',
+  DOM: 'Caribe',
+  HTI: 'Caribe',
+};
+
+const BORDER_COUNTRIES_BY_ISO = {
+  ARG: ['BOL', 'BRA', 'CHL', 'PRY', 'URY'],
+  BOL: ['ARG', 'BRA', 'CHL', 'PRY', 'PER'],
+  BRA: ['ARG', 'BOL', 'COL', 'GUY', 'PRY', 'PER', 'SUR', 'URY', 'VEN'],
+  CHL: ['ARG', 'BOL', 'PER'],
+  COL: ['BRA', 'ECU', 'PAN', 'PER', 'VEN'],
+  CRI: ['NIC', 'PAN'],
+  DOM: ['HTI'],
+  ECU: ['COL', 'PER'],
+  SLV: ['GTM', 'HND'],
+  GTM: ['BLZ', 'SLV', 'HND', 'MEX'],
+  GUY: ['BRA', 'SUR', 'VEN'],
+  HTI: ['DOM'],
+  HND: ['GTM', 'SLV', 'NIC'],
+  MEX: ['BLZ', 'GTM'],
+  NIC: ['CRI', 'HND'],
+  PAN: ['COL', 'CRI'],
+  PRY: ['ARG', 'BOL', 'BRA'],
+  PER: ['BOL', 'BRA', 'CHL', 'COL', 'ECU'],
+  SUR: ['BRA', 'GUY'],
+  URY: ['ARG', 'BRA'],
+  VEN: ['BRA', 'COL', 'GUY'],
+};
+  
+COUNTRIES.forEach((country) => {
+  country.bidRegion = BID_REGION_BY_ISO[country.iso3] || null;
+  country.borderCountries = BORDER_COUNTRIES_BY_ISO[country.iso3] || [];
+});
+
 // ─── Fetch single indicator from World Bank ───────────
 const REGION_COUNTRY_COUNT = COUNTRIES.length;
 const REGION_ISO_CODES = COUNTRIES.map(country => country.iso3);
 const WORLD_BANK_REGION_COUNTRY_PATH = REGION_ISO_CODES.join(';');
 const UNDP_REGION_COUNTRY_LIST = REGION_ISO_CODES.join(',');
+
+function getEntriesWithValue(byIso = {}) {
+  return Object.entries(byIso)
+    .filter(([, entry]) => entry && entry.value != null)
+    .map(([iso, entry]) => ({ iso, ...entry }));
+}
+
+function deriveAggregateYear(entries = []) {
+  const years = entries
+    .map(entry => String(entry?.date || '').trim())
+    .filter(Boolean);
+
+  if (!years.length) return null;
+
+  const counts = new Map();
+  years.forEach((year) => counts.set(year, (counts.get(year) || 0) + 1));
+
+  return [...counts.entries()]
+    .sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return Number(b[0]) - Number(a[0]);
+    })[0][0];
+}
+
+function sumEntries(entries = []) {
+  return entries.reduce((sum, entry) => sum + Number(entry.value || 0), 0);
+}
+
+function averageEntries(entries = []) {
+  if (!entries.length) return null;
+  return sumEntries(entries) / entries.length;
+}
+
+function weightedAverageEntries(entries = [], weightsByIso = {}) {
+  let weightedSum = 0;
+  let weightSum = 0;
+
+  entries.forEach((entry) => {
+    const weight = Number(weightsByIso[entry.iso] ?? null);
+    const value = Number(entry.value ?? null);
+    if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(value)) return;
+    weightedSum += value * weight;
+    weightSum += weight;
+  });
+
+  return weightSum > 0 ? weightedSum / weightSum : null;
+}
+
+function buildAggregateIndicator(def, byIso, extra = {}) {
+  const entries = getEntriesWithValue(byIso);
+  return {
+    ...def,
+    value: extra.value ?? null,
+    date: extra.date ?? deriveAggregateYear(entries),
+    source: extra.source || entries[0]?.source || def.source || 'Banco Mundial',
+    rankALC: null,
+    totalALC: REGION_COUNTRY_COUNT,
+  };
+}
+
+function buildRegionalAggregateIndicators(regionDataByKey, hdiRegionData) {
+  const populationEntries = getEntriesWithValue(regionDataByKey.population?.byIso);
+  const laborForceEntries = getEntriesWithValue(regionDataByKey.laborForce?.byIso);
+  const gdpEntries = getEntriesWithValue(regionDataByKey.gdpTotal?.byIso);
+  const hdiEntries = getEntriesWithValue(hdiRegionData?.byIso);
+
+  const populationTotal = sumEntries(populationEntries);
+  const laborForceTotal = sumEntries(laborForceEntries);
+  const gdpTotal = sumEntries(gdpEntries);
+
+  const laborForceWeights = Object.fromEntries(laborForceEntries.map((entry) => [entry.iso, entry.value]));
+
+  const aggregateStrategies = {
+    population: () => buildAggregateIndicator(INDICATORS.population, regionDataByKey.population.byIso, { value: populationTotal }),
+    laborForce: () => buildAggregateIndicator(INDICATORS.laborForce, regionDataByKey.laborForce.byIso, { value: laborForceTotal }),
+    unemployment: () => buildAggregateIndicator(INDICATORS.unemployment, regionDataByKey.unemployment.byIso, {
+      value: weightedAverageEntries(getEntriesWithValue(regionDataByKey.unemployment?.byIso), laborForceWeights),
+    }),
+    gdpTotal: () => buildAggregateIndicator(INDICATORS.gdpTotal, regionDataByKey.gdpTotal.byIso, { value: gdpTotal }),
+    gdpPerCapita: () => buildAggregateIndicator(INDICATORS.gdpPerCapita, regionDataByKey.gdpPerCapita.byIso, {
+      value: populationTotal > 0 ? gdpTotal / populationTotal : null,
+      date: deriveAggregateYear([...populationEntries, ...gdpEntries]),
+    }),
+    gdpGrowth: () => buildAggregateIndicator(INDICATORS.gdpGrowth, regionDataByKey.gdpGrowth.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.gdpGrowth?.byIso)),
+    }),
+    hdi: () => buildAggregateIndicator(INDICATORS.hdi, hdiRegionData.byIso, {
+      value: averageEntries(hdiEntries),
+      source: hdiEntries[0]?.source || 'PNUD API',
+    }),
+    gini: () => buildAggregateIndicator(INDICATORS.gini, regionDataByKey.gini.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.gini?.byIso)),
+    }),
+    internetUsers: () => buildAggregateIndicator(INDICATORS.internetUsers, regionDataByKey.internetUsers.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.internetUsers?.byIso)),
+    }),
+    householdInternet: () => buildAggregateIndicator(INDICATORS.householdInternet, regionDataByKey.householdInternet.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.householdInternet?.byIso)),
+    }),
+    mobileSubs: () => buildAggregateIndicator(INDICATORS.mobileSubs, regionDataByKey.mobileSubs.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.mobileSubs?.byIso)),
+    }),
+    broadband: () => buildAggregateIndicator(INDICATORS.broadband, regionDataByKey.broadband.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.broadband?.byIso)),
+    }),
+    coverage5g: () => buildAggregateIndicator(INDICATORS.coverage5g, regionDataByKey.coverage5g.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.coverage5g?.byIso)),
+    }),
+    coverage4g: () => buildAggregateIndicator(INDICATORS.coverage4g, regionDataByKey.coverage4g.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.coverage4g?.byIso)),
+    }),
+    coverage3g: () => buildAggregateIndicator(INDICATORS.coverage3g, regionDataByKey.coverage3g.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.coverage3g?.byIso)),
+    }),
+    findexBuy: () => buildAggregateIndicator(INDICATORS.findexBuy, regionDataByKey.findexBuy.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.findexBuy?.byIso)),
+    }),
+    findexPayOnline: () => buildAggregateIndicator(INDICATORS.findexPayOnline, regionDataByKey.findexPayOnline.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.findexPayOnline?.byIso)),
+    }),
+    findexBalance: () => buildAggregateIndicator(INDICATORS.findexBalance, regionDataByKey.findexBalance.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.findexBalance?.byIso)),
+    }),
+    findexMadePay: () => buildAggregateIndicator(INDICATORS.findexMadePay, regionDataByKey.findexMadePay.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.findexMadePay?.byIso)),
+    }),
+    findexRecvPay: () => buildAggregateIndicator(INDICATORS.findexRecvPay, regionDataByKey.findexRecvPay.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.findexRecvPay?.byIso)),
+    }),
+    digitalServicesExports: () => buildAggregateIndicator(INDICATORS.digitalServicesExports, regionDataByKey.digitalServicesExports.byIso, {
+      value: sumEntries(getEntriesWithValue(regionDataByKey.digitalServicesExports?.byIso)),
+    }),
+    ictPatents: () => buildAggregateIndicator(INDICATORS.ictPatents, regionDataByKey.ictPatents.byIso, {
+      value: sumEntries(getEntriesWithValue(regionDataByKey.ictPatents?.byIso)),
+    }),
+    stemGraduates: () => buildAggregateIndicator(INDICATORS.stemGraduates, regionDataByKey.stemGraduates.byIso, {
+      value: averageEntries(getEntriesWithValue(regionDataByKey.stemGraduates?.byIso)),
+    }),
+  };
+
+  return Object.fromEntries(
+    Object.keys(INDICATORS).map((key) => [key, aggregateStrategies[key] ? aggregateStrategies[key]() : null])
+  );
+}
+
+function buildRegionalGovData() {
+  const avgGtmiGroup = 'ALC';
+  const avgGciTier = getGciTier(ALC_GOV_STATS.gciAvg);
+  return {
+    egdi: {
+      score: ALC_GOV_STATS.egdiAvg,
+      group: getEgdiGroup(ALC_GOV_STATS.egdiAvg),
+      rankWorld: null,
+      rankALC: null,
+      alcAvg: ALC_GOV_STATS.egdiAvg,
+      diffVsAlc: 0,
+      subindices: {
+        osi: { score: ALC_GOV_STATS.avgOSI, alcAvg: ALC_GOV_STATS.avgOSI, rankALC: null },
+        tii: { score: ALC_GOV_STATS.avgTII, alcAvg: ALC_GOV_STATS.avgTII, rankALC: null },
+        hci: { score: ALC_GOV_STATS.avgHCI, alcAvg: ALC_GOV_STATS.avgHCI, rankALC: null },
+        epi: { score: ALC_GOV_STATS.avgEPI, alcAvg: ALC_GOV_STATS.avgEPI, rankALC: null }
+      },
+      year: '2024',
+      allAlc: ALC_GOV_STATS.allEgdi,
+    },
+    gci: {
+      score: ALC_GOV_STATS.gciAvg,
+      tier: avgGciTier,
+      tierLabel: GCI_TIER_LABELS[avgGciTier] ?? null,
+      rankALC: null,
+      alcAvg: ALC_GOV_STATS.gciAvg,
+      diffVsAlc: 0,
+      year: '2024',
+      allAlc: ALC_GOV_STATS.allGci,
+    },
+    gtmi: {
+      group: avgGtmiGroup,
+      groupLabel: 'Promedio ALC',
+      score: ALC_GOV_STATS.gtmiAvg,
+      rankWorld: null,
+      rankALC: null,
+      alcAvg: ALC_GOV_STATS.gtmiAvg,
+      diffVsAlc: 0,
+      subindices: {
+        cgsi: { score: ALC_GOV_STATS.avgCGSI, alcAvg: ALC_GOV_STATS.avgCGSI, rankALC: null },
+        psdi: { score: ALC_GOV_STATS.avgPSDI, alcAvg: ALC_GOV_STATS.avgPSDI, rankALC: null },
+        dcei: { score: ALC_GOV_STATS.avgDCEI, alcAvg: ALC_GOV_STATS.avgDCEI, rankALC: null },
+        gtei: { score: ALC_GOV_STATS.avgGTEI, alcAvg: ALC_GOV_STATS.avgGTEI, rankALC: null }
+      },
+      year: '2025',
+      allAlc: ALC_GOV_STATS.allGtmi,
+    },
+    ocde: {
+      score: ALC_GOV_STATS.ocdeAvg,
+      rankALC: null,
+      alcAvg: ALC_GOV_STATS.ocdeAvg,
+      diffVsAlc: 0,
+      subindices: {
+        dd: { score: ALC_GOV_STATS.ocdeAvgDD, alcAvg: ALC_GOV_STATS.ocdeAvgDD, rankALC: null },
+        id: { score: ALC_GOV_STATS.ocdeAvgID, alcAvg: ALC_GOV_STATS.ocdeAvgID, rankALC: null },
+        gp: { score: ALC_GOV_STATS.ocdeAvgGP, alcAvg: ALC_GOV_STATS.ocdeAvgGP, rankALC: null },
+        ad: { score: ALC_GOV_STATS.ocdeAvgAD, alcAvg: ALC_GOV_STATS.ocdeAvgAD, rankALC: null },
+        iu: { score: ALC_GOV_STATS.ocdeAvgIU, alcAvg: ALC_GOV_STATS.ocdeAvgIU, rankALC: null },
+        pr: { score: ALC_GOV_STATS.ocdeAvgPR, alcAvg: ALC_GOV_STATS.ocdeAvgPR, rankALC: null }
+      },
+      year: '2022',
+      allAlc: ALC_GOV_STATS.allOcde,
+    },
+    ai: {
+      score: ALC_GOV_STATS.aiAvg,
+      rankALC: null,
+      alcAvg: ALC_GOV_STATS.aiAvg,
+      diffVsAlc: 0,
+      year: '2023',
+      allAlc: ALC_GOV_STATS.allAi,
+    }
+  };
+}
 
 async function fetchIndicator(isoCode, indicatorCode) {
   const url = `https://api.worldbank.org/v2/country/${isoCode}/indicator/${indicatorCode}?format=json&mrv=1`;
@@ -286,10 +598,13 @@ function toFiniteNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function buildIndicatorRanking(valuesByIso) {
+const LOWER_IS_BETTER_INDICATORS = new Set(['SI.POV.GINI']);
+
+function buildIndicatorRanking(valuesByIso, indicatorCode = null) {
+  const lowerIsBetter = LOWER_IS_BETTER_INDICATORS.has(String(indicatorCode || '').toUpperCase());
   const sorted = Object.entries(valuesByIso)
     .filter(([, entry]) => entry && entry.value != null)
-    .sort((a, b) => b[1].value - a[1].value);
+    .sort((a, b) => lowerIsBetter ? a[1].value - b[1].value : b[1].value - a[1].value);
 
   return Object.fromEntries(sorted.map(([iso], index) => [iso, index + 1]));
 }
@@ -310,7 +625,7 @@ function getRegionFallbackRankings(indicatorKey) {
 
   return {
     byIso,
-    rankMap: buildIndicatorRanking(byIso),
+    rankMap: buildIndicatorRanking(byIso, 'hdi'),
   };
 }
 
@@ -342,7 +657,7 @@ async function fetchWorldBankRegionIndicator(indicatorCode) {
 
   const data = {
     byIso,
-    rankMap: buildIndicatorRanking(byIso),
+    rankMap: buildIndicatorRanking(byIso, indicatorCode),
   };
   setTimedCache(indicatorRegionCache, cacheKey, data);
   return data;
@@ -401,7 +716,7 @@ async function fetchData360RegionIndicator(databaseId, indicatorId, fallbackIndi
 
     const data = {
       byIso,
-      rankMap: buildIndicatorRanking(byIso),
+      rankMap: buildIndicatorRanking(byIso, indicatorId),
     };
     setTimedCache(indicatorRegionCache, cacheKey, data);
     return data;
@@ -482,7 +797,7 @@ async function fetchUndpRegionIndicator(indicatorCode) {
 
   const data = {
     byIso,
-    rankMap: buildIndicatorRanking(byIso),
+    rankMap: buildIndicatorRanking(byIso, indicatorCode),
   };
   setTimedCache(indicatorRegionCache, cacheKey, data);
   return data;
@@ -501,7 +816,8 @@ app.get('/api/indicators', (_req, res) => {
 // ─── API: full country data ───────────────────────────
 app.get('/api/country/:iso', async (req, res) => {
   const iso = req.params.iso.toUpperCase();
-  const country = COUNTRIES.find(c => c.iso3 === iso);
+  const isRegionAggregate = iso === REGION_AGGREGATE_ISO;
+  const country = isRegionAggregate ? { iso3: REGION_AGGREGATE_ISO } : COUNTRIES.find(c => c.iso3 === iso);
   if (!country) return res.status(404).json({ error: 'País no encontrado' });
 
   // Check cache
@@ -511,8 +827,9 @@ app.get('/api/country/:iso', async (req, res) => {
   try {
     // Fetch indicators + exchange rates in parallel
     const entries = Object.entries(INDICATORS).filter(([key]) => key !== 'hdi');
-    const [ratesResult, hdiRegionResult, ...indicatorRegionResults] = await Promise.allSettled([
+    const [ratesResult, countryMetadataResult, hdiRegionResult, ...indicatorRegionResults] = await Promise.allSettled([
       getExchangeRates(),
+      isRegionAggregate ? Promise.resolve({ incomeLevel: null }) : fetchWorldBankCountryMetadata(iso),
       fetchUndpRegionIndicator('hdi'),
       ...entries.map(([, def]) => {
         if (def.databaseId) {
@@ -522,8 +839,11 @@ app.get('/api/country/:iso', async (req, res) => {
       }),
     ]);
 
-    const rates = ratesResult.status === 'fulfilled' ? ratesResult.value : {};
-    const exchangeRate = rates[country.currencyCode] ?? null;
+      const rates = ratesResult.status === 'fulfilled' ? ratesResult.value : {};
+      const countryMetadata = countryMetadataResult.status === 'fulfilled'
+        ? countryMetadataResult.value
+        : { incomeLevel: null };
+      const exchangeRate = country.currencyCode ? (rates[country.currencyCode] ?? null) : null;
     const govStatic = GOV_DATA[iso] || {};
     const gci = getGciData(iso);
     const egdiGroup = getEgdiGroup(govStatic.egdi);
@@ -531,13 +851,39 @@ app.get('/api/country/:iso', async (req, res) => {
     const hdiRegionData = hdiRegionResult.status === 'fulfilled'
       ? hdiRegionResult.value
       : getRegionFallbackRankings('hdi');
+    const regionDataByKey = {};
+    entries.forEach(([key], i) => {
+      const result = indicatorRegionResults[i];
+      regionDataByKey[key] = result.status === 'fulfilled'
+        ? result.value
+        : { byIso: {}, rankMap: {} };
+    });
+
+    if (isRegionAggregate) {
+      const data = {
+        country: {
+          iso3: REGION_AGGREGATE_ISO,
+          name: REGION_AGGREGATE_NAME,
+          isRegionAggregate: true,
+          memberCountries: REGION_ISO_CODES,
+        },
+        indicators: buildRegionalAggregateIndicators(regionDataByKey, hdiRegionData),
+        govData: buildRegionalGovData(),
+      };
+
+      setCache(iso, data);
+      return res.json(data);
+    }
+
     const hdiEntry = hdiRegionData.byIso[iso] || { value: null, date: null, source: 'PNUD API' };
 
     const data = {
       country: {
         iso3: country.iso3,
-        name: country.name,
-        flag: country.flag,
+          name: country.name,
+          bidRegion: country.bidRegion,
+          incomeLevel: countryMetadata.incomeLevel,
+          flag: country.flag,
         numericId: country.numericId,
         capital: country.capital,
         timezone: country.timezone,
@@ -545,16 +891,14 @@ app.get('/api/country/:iso', async (req, res) => {
         currencyCode: country.currencyCode,
         domain: country.domain,
         phoneCode: country.phoneCode,
+        borderCountries: country.borderCountries,
         exchangeRate,
       },
       indicators: {},
     };
 
-    entries.forEach(([key, def], i) => {
-      const result = indicatorRegionResults[i];
-      const regionData = result.status === 'fulfilled'
-        ? result.value
-        : { byIso: {}, rankMap: {} };
+    entries.forEach(([key, def]) => {
+      const regionData = regionDataByKey[key];
       const entry = regionData.byIso[iso] || { value: null, date: null, source: null };
       data.indicators[key] = {
         ...def,

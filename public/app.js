@@ -7,6 +7,10 @@ const $$ = (sel) => document.querySelectorAll(sel);
 
 // DOM refs
 const selectEl          = $('#country-select');
+const countryPicker     = $('#country-picker');
+const countryPickerTrigger = $('#country-picker-trigger');
+const countryPickerTriggerText = $('#country-picker-trigger-text');
+const countryPickerPanel = $('#country-picker-panel');
 const loader            = $('#loader');
 const errorEl           = $('#error');
 const errorMsg          = $('#error-msg');
@@ -23,8 +27,17 @@ const mapPlaceholder    = $('#map-placeholder');
 const countryBanner     = $('#country-banner');
 const bannerFlag        = $('#banner-flag');
 const bannerName        = $('#banner-name');
+const bannerSubregion   = $('#banner-subregion');
+const bannerIncomeLevel = $('#banner-income-level');
+const bannerMetaBlock   = $('#banner-meta-block');
+const bannerRegionFlags = $('#banner-region-flags');
+const infoMetaBlock     = $('#info-meta-block');
+const infoRows          = $('#info-rows');
+const infoRegionFlags   = $('#info-region-flags');
+const mapRegionTrigger  = $('#map-region-trigger');
 const basicLinks        = $('#basic-links');
 const connectivityLinks = $('#connectivity-links');
+const findexLinks       = $('#findex-links');
 
 // State
 let countries = [];
@@ -33,7 +46,16 @@ let clockInterval = null;
 let _govRadarChart = null;
 let _dimRadarChart = null;
 
+const INCOME_LEVEL_TOOLTIP = 'Clasificación del Banco Mundial según el ingreso nacional bruto per cápita del país. Fuente: metadata oficial de país del Banco Mundial.';
+
 // Numeric ID → ISO3 mapping (built from server data)
+const REGION_AGGREGATE_ISO = 'ALC';
+const REGION_OPTION = {
+  iso3: REGION_AGGREGATE_ISO,
+  name: 'Am\u00E9rica Latina y el Caribe',
+  isRegionAggregate: true,
+};
+
 let numericToIso = {};
 const ISO2_BY_ISO3 = {
   ARG: 'ar', BOL: 'bo', BRA: 'br', CHL: 'cl', COL: 'co', CRI: 'cr', DOM: 'do',
@@ -85,6 +107,7 @@ const CONNECTIVITY_CARD_GROUPS = [
     keys: ['coverage5g', 'coverage4g', 'coverage3g'],
   },
 ];
+const BID_REGION_ORDER = ['Cono Sur', 'Grupo Andino', 'Centroamérica y México', 'Caribe'];
 const ECONOMY_TALENT_CARD_GROUPS = [
   {
     title: 'Servicios financieros digitales',
@@ -167,7 +190,62 @@ function getFlagEmoji(iso3) {
     .toUpperCase()
     .split('')
     .map(char => String.fromCodePoint(127397 + char.charCodeAt(0)))
-    .join('');
+      .join('');
+}
+
+function renderNeighborPills(borderCountries = []) {
+  const container = $('#info-neighbors');
+  if (!container) return;
+
+  if (!Array.isArray(borderCountries) || borderCountries.length === 0) {
+    container.innerHTML = '<span class="neighbor-empty">Sin fronteras terrestres</span>';
+    return;
+  }
+
+  container.innerHTML = buildCountryPillsMarkup(borderCountries, 'neighbor-pill', 'w40');
+  bindCountryPillNavigation(container);
+}
+
+function renderRegionCountryPills(container, memberCountries = []) {
+  if (!container) return;
+  container.innerHTML = buildCountryPillsMarkup(memberCountries, 'region-country-pill', 'w40');
+  bindCountryPillNavigation(container);
+}
+
+function formatCountryNameWithRegion(country) {
+  const name = fixText(country?.name || '');
+  const bidRegion = fixText(country?.bidRegion || '');
+  return bidRegion ? `${name} · ${bidRegion}` : name;
+}
+
+function getFlagCdnUrl(iso3, size = 'w80') {
+  const iso2 = ISO2_BY_ISO3[iso3] || 'xx';
+  return `https://flagcdn.com/${size}/${iso2}.png`;
+}
+
+function buildCountryPillsMarkup(isoList = [], className = 'neighbor-pill', flagSize = 'w40') {
+  return isoList.map((iso3) => {
+    const match = countries.find((country) => country.iso3 === iso3);
+    const name = fixText(match?.name || iso3);
+    const iso2 = (ISO2_BY_ISO3[iso3] || iso3).toUpperCase();
+    const flagUrl = getFlagCdnUrl(iso3, flagSize);
+    return `
+      <button type="button" class="${className}" data-iso="${iso3}" title="${escapeHtmlAttr(name)}" aria-label="Ir a ${escapeHtmlAttr(name)}">
+        <img class="${className}-flag" src="${flagUrl}" alt="Bandera de ${escapeHtmlAttr(name)}" loading="lazy" />
+        <span class="${className}-code">${iso2}</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function bindCountryPillNavigation(container) {
+  if (!container) return;
+  container.querySelectorAll('[data-iso]').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      const iso = pill.dataset.iso;
+      if (iso) loadCountry(iso);
+    });
+  });
 }
 
 function normalizeCountryId(id) {
@@ -411,22 +489,34 @@ function formatMillions(value, unitLabel = 'M') {
   return formatted ? `${formatted} ${unitLabel}` : null;
 }
 
-function formatValueWithYearText(displayValue, year) {
+function formatValueWithYearHtml(displayValue, year) {
   if (!displayValue) return '--';
-  return year ? `${displayValue} \u00B7 ${year}` : displayValue;
+  return year
+    ? `${displayValue} <span class="data-year-sep" aria-hidden="true">\u00B7</span> <span class="data-year-inline">${year}</span>`
+    : displayValue;
 }
 
 function getIndicatorTooltip(indicator) {
   return INDICATOR_TOOLTIPS[indicator.code] || fixText(indicator.label) || 'Indicador sin descripción disponible.';
 }
 
-function buildValueRowHtml(displayValue, hasData, year, tooltip) {
+function buildValueRowHtml(displayValue, hasData, year, tooltip, prefixLabel = '') {
+  const prefixHtml = prefixLabel
+    ? `<span class="card-inline-prefix">${prefixLabel}</span>`
+    : '';
+
   if (!year) {
-    return `<span class="card-value ${hasData ? '' : 'no-data'}" title="${escapeHtmlAttr(tooltip)}" aria-label="${escapeHtmlAttr(tooltip)}">${hasData ? displayValue : '--'}</span>`;
+    return `
+      <div class="card-value-row" title="${escapeHtmlAttr(tooltip)}" aria-label="${escapeHtmlAttr(tooltip)}">
+        ${prefixHtml}
+        <span class="card-value ${hasData ? '' : 'no-data'}">${hasData ? displayValue : '--'}</span>
+      </div>
+    `;
   }
 
   return `
     <div class="card-value-row" title="${escapeHtmlAttr(tooltip)}" aria-label="${escapeHtmlAttr(tooltip)}">
+      ${prefixHtml}
       <span class="card-value ${hasData ? '' : 'no-data'}">${hasData ? displayValue : '--'}</span>
       <span class="card-value-sep" aria-hidden="true">\u00B7</span>
       <span class="card-year">${year}</span>
@@ -434,10 +524,10 @@ function buildValueRowHtml(displayValue, hasData, year, tooltip) {
   `;
 }
 
-function buildMetaItemHtml(label, displayText, metaIndicator, extraClass = '') {
+function buildMetaItemHtml(label, displayHtml, metaIndicator, extraClass = '') {
   const tooltip = getIndicatorTooltip(metaIndicator);
   const { hasRegionalRank, medal, rankBadge, rankTooltip } = getRankMeta(metaIndicator);
-  const hasData = displayText && displayText !== '--';
+  const hasData = displayHtml && displayHtml !== '--';
 
   return `
     <span class="card-meta-row ${hasData ? '' : 'no-data'} ${extraClass}" title="${escapeHtmlAttr(tooltip)}" aria-label="${escapeHtmlAttr(tooltip)}">
@@ -445,7 +535,7 @@ function buildMetaItemHtml(label, displayText, metaIndicator, extraClass = '') {
         ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
         <span>${rankBadge}</span>
       </span>
-      <span class="card-meta-copy">${label}: ${displayText || '--'}</span>
+      <span class="card-meta-copy">${label}: ${displayHtml || '--'}</span>
     </span>
   `;
 }
@@ -485,6 +575,14 @@ function createCard(indicator, country, allIndicators = {}) {
   const card = document.createElement('div');
   card.className = 'card';
   const showCardSources = indicator.category !== 'basic';
+  const customTitleMap = {
+    'SP.POP.TOTL': 'Demograf\u00EDa, mercado laboral y desarrollo',
+    'NY.GDP.MKTP.CD': 'Econom\u00EDa',
+  };
+  const inlinePrefixMap = {
+    'SP.POP.TOTL': 'Poblaci\u00F3n:',
+    'NY.GDP.MKTP.CD': 'PIB:',
+  };
   
   const badgeThemeMap = {
     basic: {
@@ -528,7 +626,8 @@ function createCard(indicator, country, allIndicators = {}) {
   }
   const hasData = displayValue !== null;
   const mainTooltip = getIndicatorTooltip(indicator);
-  const mainValueHtml = buildValueRowHtml(displayValue, hasData, indicator.date, mainTooltip);
+  const mainValueHtml = buildValueRowHtml(displayValue, hasData, indicator.date, mainTooltip, inlinePrefixMap[indicator.code] || '');
+  const cardTitle = customTitleMap[indicator.code] || fixText(indicator.label);
   const embeddedIndicators = [];
   let extraMetaHtml = '';
 
@@ -544,21 +643,21 @@ function createCard(indicator, country, allIndicators = {}) {
         ? `${laborForceValue}${laborForceShare ? ` (${laborForceShare}%)` : ''}`
         : '--';
 
-      extraMetaHtml += buildMetaItemHtml('Fuerza laboral', formatValueWithYearText(laborForceText, laborForce.date), laborForce);
+      extraMetaHtml += buildMetaItemHtml('Fuerza laboral', formatValueWithYearHtml(laborForceText, laborForce.date), laborForce);
     }
 
     if (allIndicators.unemployment) {
       const unemployment = allIndicators.unemployment;
       embeddedIndicators.push(unemployment);
       const unemploymentValue = formatValue(unemployment.value, unemployment.format);
-      extraMetaHtml += buildMetaItemHtml('Desempleo', formatValueWithYearText(unemploymentValue, unemployment.date), unemployment);
+      extraMetaHtml += buildMetaItemHtml('Desempleo', formatValueWithYearHtml(unemploymentValue, unemployment.date), unemployment);
     }
 
     if (allIndicators.hdi) {
       const hdi = allIndicators.hdi;
       embeddedIndicators.push(hdi);
       const hdiValue = formatValue(hdi.value, hdi.format);
-      extraMetaHtml += buildMetaItemHtml('\u00CDndice de desarrollo humano', formatValueWithYearText(hdiValue, hdi.date), hdi, 'card-meta-break');
+      extraMetaHtml += buildMetaItemHtml('\u00CDndice de desarrollo humano', formatValueWithYearHtml(hdiValue, hdi.date), hdi, 'card-meta-break');
     }
   }
 
@@ -570,19 +669,19 @@ function createCard(indicator, country, allIndicators = {}) {
     if (gdpPerCapita) {
       embeddedIndicators.push(gdpPerCapita);
       const gdpPerCapitaValue = formatValue(gdpPerCapita.value, gdpPerCapita.format);
-      extraMetaHtml += buildMetaItemHtml('PIB per c\u00E1pita', formatValueWithYearText(gdpPerCapitaValue, gdpPerCapita.date), gdpPerCapita);
+      extraMetaHtml += buildMetaItemHtml('PIB per c\u00E1pita', formatValueWithYearHtml(gdpPerCapitaValue, gdpPerCapita.date), gdpPerCapita);
     }
 
     if (gdpGrowth) {
       embeddedIndicators.push(gdpGrowth);
       const gdpGrowthValue = formatValue(gdpGrowth.value, gdpGrowth.format);
-      extraMetaHtml += buildMetaItemHtml('Crecimiento del PIB', formatValueWithYearText(gdpGrowthValue, gdpGrowth.date), gdpGrowth);
+      extraMetaHtml += buildMetaItemHtml('Crecimiento del PIB', formatValueWithYearHtml(gdpGrowthValue, gdpGrowth.date), gdpGrowth);
     }
 
     if (gini) {
       embeddedIndicators.push(gini);
       const giniValue = formatValue(gini.value, gini.format);
-      extraMetaHtml += buildMetaItemHtml('\u00CDndice de Gini', formatValueWithYearText(giniValue, gini.date), gini);
+      extraMetaHtml += buildMetaItemHtml('\u00CDndice de Gini', formatValueWithYearHtml(giniValue, gini.date), gini);
     }
   }
   
@@ -596,7 +695,7 @@ function createCard(indicator, country, allIndicators = {}) {
   card.innerHTML = `
     <div class="card-badge">${INDICATOR_ICONS[indicator.code] || fixText(indicator.icon) || ''}</div>
     <div class="card-content">
-      <span class="card-label" title="${escapeHtmlAttr(mainTooltip)}" aria-label="${escapeHtmlAttr(mainTooltip)}">${fixText(indicator.label)}</span>
+      <span class="card-label" title="${escapeHtmlAttr(mainTooltip)}" aria-label="${escapeHtmlAttr(mainTooltip)}">${cardTitle}</span>
       <div class="card-main-row">
         <span class="card-alc-badge ${hasRegionalRank ? '' : 'no-data'} ${medal ? medal.className : ''}" title="${rankTooltip}" aria-label="${rankTooltip}">
           ${medal ? `<span class="card-alc-medal" aria-hidden="true">${medal.icon}</span>` : ''}
@@ -633,7 +732,7 @@ function createCompoundCard({ title, icon, metrics, country, showSources = true,
     const hasData = displayValue !== null;
     const { hasRegionalRank, medal, rankBadge, rankTooltip } = getRankMeta(indicator);
     const metricTooltip = getIndicatorTooltip(indicator);
-    const metricText = formatValueWithYearText(displayValue, indicator.date);
+    const metricText = formatValueWithYearHtml(displayValue, indicator.date);
 
     return `
       <div class="card-metric-row" title="${escapeHtmlAttr(metricTooltip)}" aria-label="${escapeHtmlAttr(metricTooltip)}">
@@ -712,6 +811,7 @@ function renderIndicators(data) {
         icon: group.icon,
         metrics,
         country: data.country,
+        showSources: false,
         theme: { bg: '#deebde', ink: '#599a69', border: '#accdb4' },
       }));
     }
@@ -726,13 +826,14 @@ function renderIndicators(data) {
 
   if (basicLinks) {
     const iso3 = data.country?.iso3 || '';
+    const isRegionAggregate = Boolean(data.country?.isRegionAggregate);
     const worldBankSlug = WORLD_BANK_COUNTRY_SLUGS[iso3] || '';
     const worldBankUrl = worldBankSlug
       ? `https://datos.bancomundial.org/pais/${worldBankSlug}`
       : 'https://datos.bancomundial.org';
-    const undpUrl = iso3
+    const undpUrl = !isRegionAggregate && iso3
       ? `https://hdr.undp.org/data-center/specific-country-data#/countries/${iso3}`
-      : 'https://hdr.undp.org/data-center/specific-country-data#/countries/';
+      : 'https://hdr.undp.org/data-center/specific-country-data';
 
     basicLinks.innerHTML = `
       <span>Fuente:</span>
@@ -744,13 +845,29 @@ function renderIndicators(data) {
 
   if (connectivityLinks) {
     const iso3 = data.country?.iso3 || '';
-    const connectivityUrl = iso3
+    const connectivityUrl = iso3 && !data.country?.isRegionAggregate
       ? `https://data360.worldbank.org/en/dataset/ITU_DH?country=${iso3}`
       : 'https://data360.worldbank.org/en/dataset/ITU_DH';
 
     connectivityLinks.innerHTML = `
       <span>Fuente:</span>
       <a href="${connectivityUrl}" target="_blank" rel="noopener noreferrer">ITU via Banco Mundial</a>
+    `;
+  }
+
+  if (findexLinks) {
+    const iso3 = data.country?.iso3 || '';
+    const suffix = iso3 && !data.country?.isRegionAggregate ? `?country=${iso3}` : '';
+
+    findexLinks.innerHTML = `
+      <span>Fuente:</span>
+      <a href="https://data360.worldbank.org/en/dataset/WB_FINDEX" target="_blank" rel="noopener noreferrer">Global Findex</a>
+      <span>&middot;</span>
+      <a href="https://data360.worldbank.org/en/dataset/UNCTAD_DE${suffix}" target="_blank" rel="noopener noreferrer">UNCTAD via Banco Mundial</a>
+      <span>&middot;</span>
+      <a href="https://data360.worldbank.org/en/dataset/WIPO_ICT${suffix}" target="_blank" rel="noopener noreferrer">WIPO via Banco Mundial</a>
+      <span>&middot;</span>
+      <a href="https://data360.worldbank.org/en/dataset/UNESCO_UIS${suffix}" target="_blank" rel="noopener noreferrer">UNESCO via Banco Mundial</a>
     `;
   }
 }
@@ -1137,29 +1254,62 @@ function renderDimensionsSection(govData, countryName, allNamesMap) {
 
 // ─── Render country info panel ────────────────────────
 function renderCountryInfo(country) {
-  $('#info-flag').textContent   = getFlagEmoji(country.iso3);
+  const isRegionAggregate = Boolean(country.isRegionAggregate);
+  $('#info-flag').textContent = isRegionAggregate ? '\uD83C\uDF0E' : getFlagEmoji(country.iso3);
   $('#info-name').textContent   = fixText(country.name);
-  $('#info-capital').textContent = fixText(country.capital);
-  $('#info-currency').textContent = `${fixText(country.currency)} (${country.currencyCode})`;
-  $('#info-exchange').textContent = formatExchangeRate(country.exchangeRate, country.currencyCode);
-  $('#info-domain').textContent  = country.domain;
-  $('#info-timezone').textContent = fixText(country.timezone);
+  $('#info-subregion').textContent = fixText(country.bidRegion || '\u2014');
+  const infoIncomeLevel = $('#info-income-level');
+  infoIncomeLevel.textContent = fixText(country.incomeLevel || '\u2014');
+  infoIncomeLevel.title = INCOME_LEVEL_TOOLTIP;
+  infoIncomeLevel.setAttribute('aria-label', INCOME_LEVEL_TOOLTIP);
 
-  // Update clock immediately, then every second
-  updateClock(country.timezone);
-  if (clockInterval) clearInterval(clockInterval);
-  clockInterval = setInterval(() => updateClock(country.timezone), 1000);
+  if (isRegionAggregate) {
+    infoMetaBlock.classList.add('hidden');
+    infoRows.classList.add('hidden');
+    infoRegionFlags.classList.remove('hidden');
+    renderRegionCountryPills(infoRegionFlags, country.memberCountries || []);
+    if (clockInterval) clearInterval(clockInterval);
+  } else {
+    infoMetaBlock.classList.remove('hidden');
+    infoRows.classList.remove('hidden');
+    infoRegionFlags.classList.add('hidden');
+    $('#info-capital').textContent = fixText(country.capital);
+    $('#info-currency').textContent = `${fixText(country.currency)} (${country.currencyCode})`;
+    $('#info-exchange').textContent = formatExchangeRate(country.exchangeRate, country.currencyCode);
+    $('#info-domain').textContent  = country.domain;
+    renderNeighborPills(country.borderCountries);
+    $('#info-timezone').textContent = fixText(country.timezone);
+
+    // Update clock immediately, then every second
+    updateClock(country.timezone);
+    if (clockInterval) clearInterval(clockInterval);
+    clockInterval = setInterval(() => updateClock(country.timezone), 1000);
+  }
 
   countryInfo.classList.remove('hidden');
 }
 
 // ─── Render country banner ────────────────────────────
 function renderBanner(country) {
-  // ISO2 code for flag CDN (derive from ISO3)
-  const iso2 = ISO2_BY_ISO3[country.iso3] || 'xx';
-  bannerFlag.src = `https://flagcdn.com/w160/${iso2}.png`;
-  bannerFlag.alt = `Bandera de ${fixText(country.name)}`;
+  const isRegionAggregate = Boolean(country.isRegionAggregate);
+  if (isRegionAggregate) {
+    bannerFlag.classList.add('hidden');
+    bannerMetaBlock.classList.add('hidden');
+    bannerRegionFlags.classList.remove('hidden');
+    renderRegionCountryPills(bannerRegionFlags, country.memberCountries || []);
+  } else {
+    const iso2 = ISO2_BY_ISO3[country.iso3] || 'xx';
+    bannerFlag.classList.remove('hidden');
+    bannerMetaBlock.classList.remove('hidden');
+    bannerRegionFlags.classList.add('hidden');
+    bannerFlag.src = `https://flagcdn.com/w160/${iso2}.png`;
+    bannerFlag.alt = `Bandera de ${fixText(country.name)}`;
+  }
   bannerName.textContent = fixText(country.name);
+  bannerSubregion.textContent = fixText(country.bidRegion || '\u2014');
+  bannerIncomeLevel.textContent = fixText(country.incomeLevel || '\u2014');
+  bannerIncomeLevel.title = INCOME_LEVEL_TOOLTIP;
+  bannerIncomeLevel.setAttribute('aria-label', INCOME_LEVEL_TOOLTIP);
   countryBanner.classList.remove('hidden');
 }
 
@@ -1188,6 +1338,7 @@ async function loadCountry(iso) {
 
   // Sync dropdown
   selectEl.value = iso;
+  updateCountryPickerSelection();
 
   // Highlight on map
   highlightCountry(iso);
@@ -1218,6 +1369,65 @@ async function loadCountry(iso) {
     console.error(err);
     showError('No se pudieron obtener los datos. Int\u00E9ntalo de nuevo.');
   }
+}
+
+function updateCountryPickerSelection() {
+  if (!countryPickerPanel || !countryPickerTriggerText) return;
+
+  const selectedCountry = countries.find(country => country.iso3 === selectedIso) || null;
+  countryPickerTriggerText.textContent = selectedCountry
+    ? formatCountryNameWithRegion(selectedCountry)
+    : '— Elige un país —';
+
+  $$('.country-picker-card').forEach((card) => {
+    card.classList.toggle('active', card.dataset.iso === selectedIso);
+  });
+}
+
+function closeCountryPicker() {
+  if (!countryPickerPanel || !countryPickerTrigger) return;
+  countryPickerPanel.classList.add('hidden');
+  countryPickerTrigger.setAttribute('aria-expanded', 'false');
+}
+
+function toggleCountryPicker() {
+  if (!countryPickerPanel || !countryPickerTrigger) return;
+  const willOpen = countryPickerPanel.classList.contains('hidden');
+  countryPickerPanel.classList.toggle('hidden', !willOpen);
+  countryPickerTrigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
+
+function renderCountryPicker() {
+  if (!countryPickerPanel) return;
+
+  const groupedCountries = BID_REGION_ORDER.map((region) => ({
+    region,
+    countries: countries.filter((country) => country.bidRegion === region),
+  })).filter((group) => group.countries.length);
+
+  countryPickerPanel.innerHTML = groupedCountries.map(({ region, countries: regionCountries }) => `
+    <section class="country-picker-group">
+      <h3 class="country-picker-group-title">${fixText(region)}</h3>
+      <div class="country-picker-grid">
+        ${regionCountries.map((country) => `
+          <button type="button" class="country-picker-card ${country.iso3 === selectedIso ? 'active' : ''}" data-iso="${country.iso3}">
+            <img class="country-picker-flag" src="${getFlagCdnUrl(country.iso3)}" alt="Bandera de ${fixText(country.name)}" loading="lazy" />
+            <span class="country-picker-name">${fixText(country.name)}</span>
+            <span class="country-picker-chevron" aria-hidden="true">&#8250;</span>
+          </button>
+        `).join('')}
+      </div>
+    </section>
+  `).join('');
+
+  $$('.country-picker-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      closeCountryPicker();
+      loadCountry(card.dataset.iso);
+    });
+  });
+
+  updateCountryPickerSelection();
 }
 
 // ─── D3 Map ───────────────────────────────────────────
@@ -1340,14 +1550,160 @@ async function init() {
       opt.textContent = `${getFlagEmoji(c.iso3)}  ${fixText(c.name)}`;
       selectEl.appendChild(opt);
     });
+    renderCountryPicker();
   } catch (err) {
     console.error('Error loading country list:', err);
   }
 
   // Events
   selectEl.addEventListener('change', e => loadCountry(e.target.value));
+  if (countryPickerTrigger) {
+    countryPickerTrigger.addEventListener('click', (event) => {
+      event.stopPropagation();
+      toggleCountryPicker();
+    });
+  }
+  document.addEventListener('click', (event) => {
+    if (countryPicker && !countryPicker.contains(event.target)) {
+      closeCountryPicker();
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeCountryPicker();
+    }
+  });
 
   // Init map
+  await initMap();
+}
+
+function updateCountryPickerSelection() {
+  if (!countryPickerPanel || !countryPickerTriggerText) return;
+
+  const selectedCountry = countries.find(country => country.iso3 === selectedIso) || null;
+  countryPickerTriggerText.textContent = selectedIso === REGION_AGGREGATE_ISO
+    ? REGION_OPTION.name
+    : (selectedCountry ? formatCountryNameWithRegion(selectedCountry) : '\u2014 Elige un pa\u00EDs \u2014');
+
+  $$('.country-picker-card').forEach((card) => {
+    card.classList.toggle('active', card.dataset.iso === selectedIso);
+  });
+}
+
+function renderCountryPicker() {
+  if (!countryPickerPanel) return;
+
+  const groupedCountries = BID_REGION_ORDER.map((region) => ({
+    region,
+    countries: countries.filter((country) => country.bidRegion === region),
+  })).filter((group) => group.countries.length);
+
+  const regionFlagsPreview = countries.map((country) => {
+    const iso2 = (ISO2_BY_ISO3[country.iso3] || country.iso3).toUpperCase();
+    return `
+      <span class="picker-region-pill" title="${escapeHtmlAttr(fixText(country.name))}" aria-hidden="true">
+        <img class="picker-region-pill-flag" src="${getFlagCdnUrl(country.iso3, 'w40')}" alt="" loading="lazy" />
+        <span class="picker-region-pill-code">${iso2}</span>
+      </span>
+    `;
+  }).join('');
+
+  countryPickerPanel.innerHTML = `
+    <section class="country-picker-group country-picker-group-region">
+      <h3 class="country-picker-group-title">Agregado regional</h3>
+      <button type="button" class="country-picker-card country-picker-card-region ${selectedIso === REGION_AGGREGATE_ISO ? 'active' : ''}" data-iso="${REGION_AGGREGATE_ISO}">
+        <span class="country-picker-region-icon" aria-hidden="true">\uD83C\uDF0E</span>
+        <span class="country-picker-region-name">${REGION_OPTION.name}</span>
+        <span class="country-picker-region-flags">${regionFlagsPreview}</span>
+      </button>
+    </section>
+    ${groupedCountries.map(({ region, countries: regionCountries }) => `
+      <section class="country-picker-group">
+        <h3 class="country-picker-group-title">${fixText(region)}</h3>
+        <div class="country-picker-grid">
+          ${regionCountries.map((country) => `
+            <button type="button" class="country-picker-card ${country.iso3 === selectedIso ? 'active' : ''}" data-iso="${country.iso3}">
+              <img class="country-picker-flag" src="${getFlagCdnUrl(country.iso3)}" alt="Bandera de ${fixText(country.name)}" loading="lazy" />
+              <span class="country-picker-name">${fixText(country.name)}</span>
+              <span class="country-picker-chevron" aria-hidden="true">&#8250;</span>
+            </button>
+          `).join('')}
+        </div>
+      </section>
+    `).join('')}
+  `;
+
+  $$('.country-picker-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      closeCountryPicker();
+      loadCountry(card.dataset.iso);
+    });
+  });
+
+  updateCountryPickerSelection();
+}
+
+function highlightCountry(iso) {
+  $$('.country-path.selected').forEach(el => el.classList.remove('selected'));
+  mapRegionTrigger?.classList.toggle('active', iso === REGION_AGGREGATE_ISO);
+
+  if (iso === REGION_AGGREGATE_ISO) {
+    $$('.country-path').forEach(el => el.classList.add('selected'));
+    return;
+  }
+
+  const country = countries.find(c => c.iso3 === iso);
+  if (!country) return;
+  const pathEl = $(`[data-id="${country.numericId}"]`);
+  if (pathEl) pathEl.classList.add('selected');
+}
+
+async function init() {
+  try {
+    const res = await fetch('/api/countries');
+    countries = await res.json();
+
+    countries.forEach(c => {
+      numericToIso[c.numericId] = c.iso3;
+    });
+
+    const regionOption = document.createElement('option');
+    regionOption.value = REGION_AGGREGATE_ISO;
+    regionOption.textContent = REGION_OPTION.name;
+    selectEl.appendChild(regionOption);
+
+    countries.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.iso3;
+      opt.textContent = `${getFlagEmoji(c.iso3)}  ${fixText(c.name)}`;
+      selectEl.appendChild(opt);
+    });
+
+    renderCountryPicker();
+  } catch (err) {
+    console.error('Error loading country list:', err);
+  }
+
+  selectEl.addEventListener('change', e => loadCountry(e.target.value));
+  mapRegionTrigger?.addEventListener('click', () => loadCountry(REGION_AGGREGATE_ISO));
+  if (countryPickerTrigger) {
+    countryPickerTrigger.addEventListener('click', (event) => {
+      event.stopPropagation();
+      toggleCountryPicker();
+    });
+  }
+  document.addEventListener('click', (event) => {
+    if (countryPicker && !countryPicker.contains(event.target)) {
+      closeCountryPicker();
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeCountryPicker();
+    }
+  });
+
   await initMap();
 }
 
