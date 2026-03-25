@@ -184,15 +184,38 @@
         <section class="gov-indices-section" id="gov-section">
           <div class="section-header">
             <h3 class="section-title">&Iacute;ndices de Desarrollo Digital del Gobierno</h3>
-            <p class="section-subtitle">Oxford AI Readiness &middot; ITU GCI &middot; OCDE/BID Gov Digital &middot; Banco Mundial GTMI &middot; ONU EGDI</p>
             <p class="section-subtitle hidden" id="gov-method-note"></p>
           </div>
           <div class="gov-layout">
             <div class="gov-radar-wrap">
+              <div class="gov-chart-toolbar">
+                <div class="gov-chart-heading">
+                  <h4 class="gov-chart-title" id="gov-chart-title">Comparación entre índices</h4>
+                </div>
+                <div class="gov-chart-toggle" id="gov-chart-toggle" aria-label="Cambiar visualización de índices">
+                  <button type="button" class="gov-chart-toggle-btn active" data-gov-chart-view="comparison">Comparativa</button>
+                  <button type="button" class="gov-chart-toggle-btn" data-gov-chart-view="history">Evolución</button>
+                </div>
+              </div>
               <canvas id="govRadarChart"></canvas>
+              <p class="chart-method-note" id="gov-radar-note"></p>
             </div>
             <div class="gov-index-cards" id="gov-index-cards"></div>
           </div>
+          <p class="section-links" id="gov-links">
+            <span>Fuentes:</span>
+            <a href="https://publicadministration.desa.un.org/egovkb/en-us/" target="_blank" rel="noopener noreferrer">EGDI (Naciones Unidas)</a>
+            <span>&middot;</span>
+            <a href="https://www.worldbank.org/en/programs/govtech/gtmi" target="_blank" rel="noopener noreferrer">GTMI (Banco Mundial)</a>
+            <span>&middot;</span>
+            <a href="https://www.itu.int/en/ITU-D/Cybersecurity/Pages/global-cybersecurity-index.aspx" target="_blank" rel="noopener noreferrer">GCI (Uni&oacute;n Internacional de las Telecomunicaciones)</a>
+            <span>&middot;</span>
+            <a href="https://www.oecd.org/en/publications/2023-oecd-idb-digital-government-index-of-latin-america-and-the-caribbean_10b82c83-en.html" target="_blank" rel="noopener noreferrer">IGD (OCDE/BID)</a>
+            <span>&middot;</span>
+            <a href="https://oxfordinsights.com/ai-readiness/" target="_blank" rel="noopener noreferrer">AI Readiness (Oxford Insights)</a>
+            <span>&middot;</span>
+            <a href="https://networkreadinessindex.org/" target="_blank" rel="noopener noreferrer">NRI (Portulans Institute)</a>
+          </p>
         </section>
 
         <section class="gov-dimensions-section" id="gov-dimensions-section" style="display:none;">
@@ -218,17 +241,31 @@
                 <span class="dim-tab-title">OCDE / BID</span>
                 <span class="dim-tab-sub">Gov. Digital</span>
               </button>
+              <button class="dim-tab" data-index="ai">
+                <span class="dim-tab-title">AI Readiness</span>
+                <span class="dim-tab-sub">Oxford Insights</span>
+              </button>
+              <button class="dim-tab" data-index="nri">
+                <span class="dim-tab-title">NRI</span>
+                <span class="dim-tab-sub">Portulans</span>
+              </button>
             </div>
 
             <div id="gov-dim-content">
               <div class="dim-list-header">
-                <span class="dim-label-sm">PUNTUACIONES POR DIMENSI&Oacute;N</span>
+                <span class="dim-label-sm">PERFIL DE DIMENSIONES</span>
                 <div class="dim-header-right">
                   <span id="dim-active-index-name" class="dim-active-index-name">GTMI</span>
-                  <span class="dim-source-link">Abrir fuente</span>
+                  <select id="dim-year-select" class="dim-year-select" aria-label="Seleccionar a&ntilde;o del &iacute;ndice"></select>
                 </div>
               </div>
-              <div class="dim-list-container" id="dim-list-container"></div>
+              <div class="dim-content-grid">
+                <div class="dim-radar-panel">
+                  <canvas id="dimRadarChart"></canvas>
+                  <p class="chart-method-note" id="dim-radar-note"></p>
+                </div>
+                <div class="dim-list-container" id="dim-list-container"></div>
+              </div>
             </div>
 
             <div id="gov-dim-empty" style="display: none; padding: 3rem; text-align: center; color: var(--text-secondary);">
@@ -248,6 +285,6 @@
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-  <script src="app.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

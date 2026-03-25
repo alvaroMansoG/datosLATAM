@@ -1,0 +1,27 @@
+const INDICATORS = {
+  population: { code: 'SP.POP.TOTL', label: 'Población total', icon: '👥', category: 'basic', format: 'number' },
+  laborForce: { code: 'SL.TLF.TOTL.IN', label: 'Fuerza laboral total', icon: '🧑‍💼', category: 'basic', format: 'number', embeddedIn: 'population' },
+  unemployment: { code: 'SL.UEM.TOTL.ZS', label: 'Desempleo total', icon: '📉', category: 'basic', format: 'percent', embeddedIn: 'population' },
+  gdpTotal: { code: 'NY.GDP.MKTP.CD', label: 'PIB (USD corrientes)', icon: '🏛️', category: 'basic', format: 'currency' },
+  gdpPerCapita: { code: 'NY.GDP.PCAP.CD', label: 'PIB per cápita (USD)', icon: '💰', category: 'basic', format: 'currency', embeddedIn: 'gdpTotal' },
+  gdpGrowth: { code: 'NY.GDP.MKTP.KD.ZG', label: 'Crecimiento del PIB', icon: '📈', category: 'basic', format: 'percent', embeddedIn: 'gdpTotal' },
+  hdi: { code: 'UNDP.HDI', label: 'Índice de Desarrollo Humano (0-1)', icon: '🎓', category: 'basic', format: 'decimal', embeddedIn: 'population' },
+  gini: { code: 'SI.POV.GINI', label: 'Índice de Gini', icon: '⚖️', category: 'basic', format: 'decimal', embeddedIn: 'gdpTotal' },
+  internetUsers: { code: 'ITU_DH_INT_USER_PT', label: 'Personas usuarias de internet', icon: '🌐', category: 'connectivity', format: 'percent', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH' },
+  householdInternet: { code: 'ITU_DH_HH_INT', label: 'Hogares con internet', icon: '🏠', category: 'connectivity', format: 'percent', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH' },
+  mobileSubs: { code: 'ITU_DH_MOB_SUB_PER_100', label: 'Celulares por cada 100 hab.', icon: '📱', category: 'connectivity', format: 'decimal', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH', fallbackCode: 'IT.CEL.SETS.P2' },
+  broadband: { code: 'IT.NET.BBND.P2', label: 'Banda ancha fija por 100 hab.', icon: '📡', category: 'connectivity', format: 'decimal' },
+  coverage5g: { code: 'ITU_DH_POP_COV_5G', label: 'Cobertura 5G (% población)', icon: '📶', category: 'connectivity', format: 'percent', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH' },
+  coverage4g: { code: 'ITU_DH_POP_COV_4G', label: 'Cobertura 4G (% población)', icon: '📶', category: 'connectivity', format: 'percent', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH' },
+  coverage3g: { code: 'ITU_DH_POP_COV_3G', label: 'Cobertura 3G (% población)', icon: '📶', category: 'connectivity', format: 'percent', source: 'ITU DataHub vía Data360 del Banco Mundial', databaseId: 'ITU_DH' },
+  findexBuy: { code: 'FIN26B', label: 'Compró en línea (móvil/internet)', icon: '🛒', category: 'findex', format: 'percent' },
+  findexPayOnline: { code: 'FIN27A', label: 'Pagó digitalmente compra en línea', icon: '💳', category: 'findex', format: 'percent' },
+  findexBalance: { code: 'FIN9B', label: 'Consultó saldo (móvil/internet)', icon: '🏦', category: 'findex', format: 'percent' },
+  findexMadePay: { code: 'g20.made', label: 'Realizó un pago digital', icon: '💸', category: 'findex', format: 'percent' },
+  findexRecvPay: { code: 'g20.received', label: 'Recibió un pago digital', icon: '📥', category: 'findex', format: 'percent' },
+  digitalServicesExports: { code: 'UNCTAD_DE_DIG_SERVTRADE_ANN_EXP', label: 'Exportaciones de servicios digitales', icon: '🌍', category: 'findex', format: 'millionUsd', source: 'UNCTAD vía Data360 del Banco Mundial', databaseId: 'UNCTAD_DE' },
+  ictPatents: { code: 'WIPO_ICT_PAT_PUB_TOT', label: 'Publicaciones de patentes TIC', icon: '💡', category: 'findex', format: 'number', source: 'WIPO vía Data360 del Banco Mundial', databaseId: 'WIPO_ICT' },
+  stemGraduates: { code: 'UNESCO_UIS_GRAD_STEM', label: 'Graduados STEM en educación terciaria', icon: '🧪', category: 'findex', format: 'percent', source: 'UNESCO UIS vía Data360 del Banco Mundial', databaseId: 'UNESCO_UIS' },
+};
+
+module.exports = { INDICATORS };

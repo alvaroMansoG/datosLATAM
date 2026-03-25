@@ -1,7 +1,72 @@
-@import url('./css/tokens.css');
-@import url('./css/layout.css');
-@import url('./css/components.css');
-@import url('./css/sections.css');
+/* ============================================
+   Design tokens
+   ============================================ */
+:root {
+  /* BID Corporate Palette */
+  --bid-azul:      #004e70;
+  --bid-cian:      #009ade;
+  --bid-gris:      #3c3b3b;
+
+  /* BID tonal variants */
+  --bid-azul-dark: #003e5a;
+  --bid-azul-deep: #00374e;
+  --bid-cian-light:#6fb8e5;
+  --bid-cian-soft: #93caeb;
+  --bid-azul-mid:  #1968bc;
+
+  --bg-primary:    #f0f4f8;
+  --bg-secondary:  #ffffff;
+  --bg-sidebar:    #004e70;
+  --bg-card:       rgba(255, 255, 255, 0.85);
+  --bg-card-hover: rgba(255, 255, 255, 1);
+  --glass-border:  rgba(0, 78, 112, 0.1);
+  --glass-shadow:  0 4px 24px rgba(0, 78, 112, 0.08);
+
+  --text-primary:   #1a2b3c;
+  --text-secondary: #4a6478;
+  --text-muted:     #6b8599;
+
+  /* Sidebar text (on dark BID azul bg) */
+  --sidebar-text:       #eaf4fa;
+  --sidebar-text-muted: #93caeb;
+
+  --accent-1: var(--bid-azul);
+  --accent-2: var(--bid-cian);
+  --gradient-main: linear-gradient(135deg, var(--bid-azul), var(--bid-cian));
+  --gradient-card: linear-gradient(135deg, rgba(0,78,112,.04), rgba(0,154,222,.03));
+
+  /* Map palette */
+  --map-bg:       var(--bg-sidebar);
+  --map-land:     #003e5a;
+  --map-border:   rgba(0,154,222,.25);
+  --map-hover:    #1968bc;
+  --map-selected: var(--bid-cian);
+  --map-label:    #eaf4fa;
+
+  --sidebar-w: 400px;
+  --radius-sm:  8px;
+  --radius-md:  14px;
+  --radius-lg:  20px;
+  --font: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --transition: .3s cubic-bezier(.4,0,.2,1);
+}
+
+/* ============================================
+   Reset & base
+   ============================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+a { color: var(--bid-cian); text-decoration: none; transition: color var(--transition); }
+a:hover { color: var(--bid-azul); }
 
 /* ============================================
    App layout — sidebar + main
@@ -1201,64 +1266,10 @@
   box-shadow: var(--glass-shadow);
   padding: 1.5rem;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   width: 100%;
   height: 480px; /* Force it to be larger */
-}
-.gov-chart-toolbar {
-  width: 100%;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.85rem;
-}
-.gov-chart-heading {
-  min-width: 0;
-}
-.gov-chart-title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #1a2b3c;
-}
-.gov-chart-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.28rem;
-  border-radius: 999px;
-  background: rgba(0,78,112,0.06);
-  border: 1px solid rgba(0,78,112,0.08);
-}
-.gov-chart-toggle-btn {
-  border: 0;
-  background: transparent;
-  color: #4d6478;
-  border-radius: 999px;
-  padding: 0.48rem 0.9rem;
-  font-size: 0.84rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-.gov-chart-toggle-btn.active {
-  background: #ffffff;
-  color: #004e70;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-.gov-radar-wrap canvas {
-  flex: 1 1 auto;
-  width: 100% !important;
-}
-.chart-method-note {
-  margin: 0.85rem 0 0;
-  max-width: 38rem;
-  font-size: 0.84rem;
-  line-height: 1.4;
-  color: #6b7f92;
-  text-align: center;
 }
 .gov-index-cards {
   display: grid;
@@ -1290,7 +1301,6 @@
 .gov-card-header.gtmi { background: linear-gradient(135deg, #eee8fb, #e8e0fa); }
 .gov-card-header.ocde { background: linear-gradient(135deg, #e6f6f8, #def2f5); }
 .gov-card-header.ai   { background: linear-gradient(135deg, #fbefdf, #f8e7cf); }
-.gov-card-header.nri  { background: linear-gradient(135deg, #e8f1fb, #dfeaf8); }
 .gov-card-title-wrap {
   flex: 1;
   min-width: 0;
@@ -1320,7 +1330,6 @@
 .gov-card-org-logo.gtmi { background: rgba(107, 63, 163, 0.12); color: #6b3fa3; }
 .gov-card-org-logo.ocde { background: rgba(14, 116, 144, 0.12); color: #0e7490; }
 .gov-card-org-logo.ai   { background: rgba(180, 83, 9, 0.12); color: #b45309; }
-.gov-card-org-logo.nri  { background: rgba(37, 99, 235, 0.12); color: #2563eb; }
 .gov-card-header-meta {
   display: flex;
   flex-direction: column;
@@ -1417,7 +1426,6 @@
 .gov-card-score-value.gtmi { color: #6b3fa3; }
 .gov-card-score-value.ocde { color: #0e7490; }
 .gov-card-score-value.ai   { color: #b45309; }
-.gov-card-score-value.nri  { color: #2563eb; }
 .gov-card-score-diff {
   display: flex;
   flex-direction: column;
@@ -1445,7 +1453,6 @@
 .gov-group-badge.gtmi { background: rgba(107, 63, 163, 0.14); color: #6b3fa3; }
 .gov-group-badge.ocde { background: rgba(14, 116, 144, 0.14); color: #0e7490; }
 .gov-group-badge.ai   { background: rgba(180, 83, 9, 0.14); color: #b45309; }
-.gov-group-badge.nri  { background: rgba(37, 99, 235, 0.14); color: #2563eb; }
 .gov-diff-positive { color: #16a34a; font-weight: 700; }
 .gov-diff-negative { color: #dc2626; font-weight: 700; }
 
@@ -1687,33 +1694,23 @@
 }
 .dim-content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(260px, 320px) 1fr;
   gap: 2rem;
   align-items: start;
 }
 .dim-radar-panel {
-  order: 2;
-  min-height: 460px;
-  padding: 1.25rem;
+  min-height: 340px;
+  padding: 1rem;
   border-radius: 16px;
   background: linear-gradient(180deg, rgba(0,78,112,.03), rgba(0,154,222,.02));
   border: 1px solid rgba(0,78,112,.08);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.dim-radar-panel .chart-method-note {
-  max-width: 32rem;
 }
 
 /* List Rows */
 .dim-list-container {
-  order: 1;
   display: flex;
   flex-direction: column;
   gap: 1.4rem;
-  min-width: 0;
 }
 .dim-row {
   display: flex;
@@ -1735,11 +1732,6 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .dim-dot {
   font-size: 0.8rem;
@@ -1752,24 +1744,6 @@
 .dim-row-score-box {
   text-align: right;
   line-height: 1.1;
-  flex: 0 0 auto;
-  min-width: 64px;
-}
-
-@media (max-width: 1200px) {
-  .gov-chart-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .gov-chart-toggle {
-    align-self: flex-end;
-  }
-  .dim-content-grid {
-    grid-template-columns: 1fr;
-  }
-  .dim-radar-panel {
-    min-height: 380px;
-  }
 }
 .dim-row-score {
   font-size: 1.3rem;
@@ -1802,23 +1776,6 @@
 }
 
 .dim-row-footer {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: .55rem;
   font-size: 0.7rem;
   color: var(--text-secondary);
-  text-align: right;
-}
-.dim-row-footer-avg {
-  color: var(--text-secondary);
-}
-.dim-row-footer-diff {
-  font-weight: 700;
-}
-.dim-diff-positive {
-  color: #16a34a;
-}
-.dim-diff-negative {
-  color: #dc2626;
 }

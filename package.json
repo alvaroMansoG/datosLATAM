@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:gov-history": "python tools/build_gov_history.py",
+    "lint": "node tools/check.js",
+    "check": "npm run lint",
+    "smoke:api": "node tools/smoke-api.js"
   },
   "dependencies": {
     "csv-parser": "^3.2.0",
