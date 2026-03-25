@@ -19,6 +19,7 @@ const { fetchWorldBankCountryMetadata, fetchWorldBankRegionIndicator } = require
 const { fetchData360RegionIndicator } = require('../services/data360');
 const { fetchCountryTrustProviders, fetchRegionalTrustProviders } = require('../services/trustProviders');
 const { fetchUndpRegionIndicator } = require('../services/undp');
+const { fetchBidProjectsByIso } = require('../services/bidProjects');
 
 const responseCache = createMemoryCache(5 * 60 * 1000);
 
@@ -51,6 +52,24 @@ function buildApiRouter() {
 
   router.get('/indicators', (_req, res) => {
     res.json(INDICATORS);
+  });
+
+  router.get('/bid-projects/:iso', async (req, res) => {
+    const iso = req.params.iso.toUpperCase();
+    const isRegionAggregate = iso === REGION_AGGREGATE_ISO;
+    const country = isRegionAggregate ? { iso3: REGION_AGGREGATE_ISO } : COUNTRIES.find((entry) => entry.iso3 === iso);
+
+    if (!country) {
+      return res.status(404).json({ error: 'PaÃ­s no encontrado' });
+    }
+
+    try {
+      const bidProjects = await fetchBidProjectsByIso(iso);
+      res.json(bidProjects);
+    } catch (err) {
+      console.error('Error fetching BID projects:', err);
+      res.status(500).json({ error: 'Error al obtener proyectos BID' });
+    }
   });
 
   router.get('/country/:iso', async (req, res) => {

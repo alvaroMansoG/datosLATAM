@@ -754,7 +754,8 @@ html {
 #enablers-section,
 #trust-section,
 #digital-guides-section,
-#gov-section {
+#gov-section,
+#bid-projects-section {
   scroll-margin-top: 1rem;
 }
 
@@ -819,6 +820,313 @@ html {
 .digital-guides-section .section-header {
   margin-bottom: 0;
   padding: 1rem 1.1rem;
+}
+
+.bid-projects-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bid-projects-filters {
+  padding: 1rem;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(244,248,251,.96), rgba(239,245,249,.88));
+  border: 1px solid rgba(0,78,112,.08);
+}
+
+.bid-projects-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .9rem;
+}
+
+.bid-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  min-width: 0;
+}
+
+.bid-filter-group-wide {
+  grid-column: 1 / -1;
+}
+
+.bid-filter-label {
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.bid-filter-input,
+.bid-filter-select {
+  width: 100%;
+  min-height: 42px;
+  padding: .7rem .85rem;
+  border: 1px solid rgba(0,78,112,.14);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.bid-filter-input:focus,
+.bid-filter-select:focus {
+  outline: none;
+  border-color: rgba(0,154,222,.6);
+  box-shadow: 0 0 0 3px rgba(0,154,222,.12);
+}
+
+.bid-filter-input:disabled,
+.bid-filter-select:disabled {
+  background: rgba(255,255,255,.72);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.bid-filter-help {
+  font-size: .78rem;
+  color: var(--text-muted);
+}
+
+.bid-project-number-box {
+  display: flex;
+  flex-direction: column;
+  gap: .7rem;
+}
+
+.bid-project-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.bid-project-chip,
+.bid-project-chip-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 34px;
+  padding: .35rem .65rem;
+  border-radius: 999px;
+  font-size: .8rem;
+}
+
+.bid-project-chip {
+  border: 0;
+  background: rgba(0,78,112,.1);
+  color: var(--bid-azul);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bid-project-chip-placeholder {
+  background: rgba(0,78,112,.06);
+  color: var(--text-muted);
+}
+
+.bid-project-number-entry {
+  display: flex;
+  gap: .65rem;
+}
+
+.bid-filter-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: .7rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--bid-azul);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bid-filter-button:hover:not(:disabled) {
+  background: var(--bid-azul-dark);
+}
+
+.bid-filter-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.bid-filter-button-secondary {
+  background: #fff;
+  color: var(--bid-azul);
+  border-color: rgba(0,78,112,.16);
+}
+
+.bid-filter-button-secondary:hover:not(:disabled) {
+  background: rgba(0,78,112,.05);
+}
+
+.bid-projects-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.bid-projects-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  color: var(--text-primary);
+  font-size: .9rem;
+  font-weight: 600;
+}
+
+.bid-projects-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .85rem;
+}
+
+.bid-projects-kpi {
+  padding: 1rem 1.05rem;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,250,252,.92));
+  border: 1px solid rgba(0,78,112,.08);
+  box-shadow: 0 8px 18px rgba(0,78,112,.05);
+}
+
+.bid-projects-kpi-label {
+  display: block;
+  margin-bottom: .3rem;
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.bid-projects-kpi-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.bid-projects-table-shell {
+  border-radius: 16px;
+  border: 1px solid rgba(0,78,112,.08);
+  background: #fff;
+  overflow: hidden;
+}
+
+.bid-projects-loading,
+.bid-projects-error,
+.bid-projects-empty-state {
+  padding: 2rem 1.2rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.bid-projects-error {
+  color: #b91c1c;
+}
+
+.bid-projects-table-meta,
+.bid-projects-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .95rem 1rem;
+  flex-wrap: wrap;
+}
+
+.bid-projects-table-meta {
+  border-bottom: 1px solid rgba(0,78,112,.08);
+  font-size: .84rem;
+  color: var(--text-secondary);
+}
+
+.bid-projects-pagination {
+  border-top: 1px solid rgba(0,78,112,.08);
+}
+
+.bid-projects-pagination-label {
+  font-size: .84rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.bid-projects-table-wrap {
+  overflow-x: auto;
+}
+
+.bid-projects-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.bid-projects-table th,
+.bid-projects-table td {
+  padding: .9rem 1rem;
+  border-bottom: 1px solid rgba(0,78,112,.08);
+  text-align: left;
+  vertical-align: top;
+  font-size: .88rem;
+}
+
+.bid-projects-table tbody tr:hover {
+  background: rgba(0,78,112,.03);
+}
+
+.bid-sort-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: left;
+}
+
+.bid-sort-button:hover {
+  color: var(--bid-azul);
+}
+
+.bid-project-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: .18rem .6rem;
+  border-radius: 999px;
+  font-size: .76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.bid-project-status-badge.status-preparacion {
+  background: rgba(29,78,216,.12);
+  color: #1d4ed8;
+}
+
+.bid-project-status-badge.status-implementacion {
+  background: rgba(22,163,74,.12);
+  color: #16a34a;
+}
+
+.bid-project-status-badge.status-cancelado {
+  background: rgba(220,38,38,.12);
+  color: #dc2626;
+}
+
+.bid-project-status-badge.status-cerrado,
+.bid-project-status-badge.status-generico {
+  background: rgba(100,116,139,.14);
+  color: #64748b;
 }
 
 .trust-summary {
@@ -994,6 +1302,235 @@ html {
   color: #a7adb5;
   font-size: .95rem;
   font-weight: 500;
+}
+
+.digital-guides-mockup {
+  padding: 1.2rem;
+  border-top: 1px solid rgba(0,78,112,.08);
+  background:
+    radial-gradient(circle at top right, rgba(111,184,229,.2), transparent 38%),
+    linear-gradient(180deg, #f7fbff 0%, #edf4fa 100%);
+}
+
+.digital-guides-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.digital-guides-breadcrumbs {
+  margin: 0 0 .55rem;
+  color: #64748b;
+  font-size: .73rem;
+  font-weight: 600;
+}
+
+.digital-guides-breadcrumbs span {
+  color: #94a3b8;
+  margin: 0 .2rem;
+}
+
+.digital-guides-shell-header {
+  margin-bottom: .9rem;
+}
+
+.digital-guides-shell-kicker {
+  margin: 0 0 .18rem;
+  color: #1e6ba8;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.digital-guides-shell-title {
+  margin: 0;
+  color: #142336;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.digital-guides-hero {
+  margin-bottom: 1rem;
+}
+
+.digital-guides-hero-body {
+  min-height: 68px;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  border-left: 4px solid #4b8fda;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 10px 24px rgba(14,48,77,.1);
+  display: flex;
+  align-items: center;
+}
+
+.digital-guides-hero-title {
+  margin: 0;
+  color: #17212f;
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.digital-guides-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.digital-guides-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.guide-card {
+  --guide-accent: #4b8fda;
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(0,78,112,.08);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 22px rgba(14,48,77,.09);
+}
+
+.guide-card-accent {
+  height: 5px;
+  background: var(--guide-accent);
+}
+
+.guide-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .8rem 1rem .35rem;
+}
+
+.guide-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+}
+
+.guide-card-dot {
+  width: .6rem;
+  height: .6rem;
+  border-radius: 999px;
+  background: var(--guide-accent);
+  flex-shrink: 0;
+}
+
+.guide-card-title {
+  margin: 0;
+  color: #17212f;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.guide-card-subtitle {
+  margin: .15rem 0 0;
+  color: #475569;
+  font-size: .76rem;
+  font-weight: 600;
+}
+
+.guide-card-icon {
+  flex-shrink: 0;
+  color: var(--guide-accent);
+  font-size: 1.45rem;
+  line-height: 1;
+  opacity: .9;
+}
+
+.guide-card-list {
+  padding: 0 1rem .9rem;
+}
+
+.guide-card-item {
+  padding: .62rem 0;
+}
+
+.guide-card-item + .guide-card-item {
+  border-top: 1px solid rgba(0,78,112,.08);
+}
+
+.guide-card-item-title {
+  margin: 0 0 .18rem;
+  color: #111827;
+  font-size: .92rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.guide-card-item-copy {
+  margin: 0;
+  color: #334155;
+  font-size: .74rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.guide-card-item-copy strong {
+  color: #17212f;
+  font-size: .68rem;
+  letter-spacing: .06em;
+}
+
+.guide-card-page {
+  color: var(--guide-accent);
+  font-weight: 800;
+}
+
+.guide-card-blue {
+  --guide-accent: #4a8fdc;
+}
+
+.guide-card-green {
+  --guide-accent: #2eb872;
+}
+
+.guide-card-yellow {
+  --guide-accent: #d9a316;
+}
+
+.guide-card-orange {
+  --guide-accent: #d96b4a;
+}
+
+.guide-card-purple {
+  --guide-accent: #8a56cf;
+}
+
+@media (max-width: 980px) {
+  .digital-guides-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .digital-guides-mockup {
+    padding: .9rem;
+  }
+
+  .digital-guides-shell-title {
+    font-size: 1.55rem;
+  }
+
+  .digital-guides-hero-body {
+    min-height: 60px;
+    padding: .9rem 1rem;
+  }
+
+  .guide-card-head {
+    padding: .75rem .85rem .35rem;
+  }
+
+  .guide-card-list {
+    padding: 0 .85rem .8rem;
+  }
 }
 
 .enabler-dimension-card {
@@ -1720,6 +2257,20 @@ html {
   }
   .card-value { font-size: 1.95rem; }
   #basic-section .card-main-copy .card-value { font-size: 1.8rem; }
+  .bid-projects-filter-grid,
+  .bid-projects-summary {
+    grid-template-columns: 1fr;
+  }
+  .bid-project-number-entry,
+  .bid-projects-filter-actions,
+  .bid-projects-table-meta,
+  .bid-projects-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .bid-projects-table {
+    min-width: 720px;
+  }
   .trust-summary {
     align-items: flex-start;
   }

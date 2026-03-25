@@ -4,6 +4,9 @@
    app.js â€” D3 map + indicator dashboard
    ============================================ */
 
+import { fetchBidProjects } from './api.js';
+import { createBidProjectsController } from './bidProjects.js';
+
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
@@ -46,6 +49,11 @@ const trustSection      = $('#trust-section');
 const trustSummary      = $('#trust-summary');
 const trustProvidersEl  = $('#trust-providers');
 const trustLinks        = $('#trust-links');
+const bidProjectsSection = $('#bid-projects-section');
+const bidProjectsFilters = $('#bid-projects-filters');
+const bidProjectsSummary = $('#bid-projects-summary');
+const bidProjectsTableShell = $('#bid-projects-table-shell');
+const bidProjectsLinks = $('#bid-projects-links');
 const basicMethodNote   = $('#basic-method-note');
 const connectivityMethodNote = $('#connectivity-method-note');
 const findexMethodNote  = $('#findex-method-note');
@@ -57,6 +65,7 @@ const govChartTitle = $('#gov-chart-title');
 const govChartToggle = $('#gov-chart-toggle');
 const sectionToggleButtons = $$('.section-toggle');
 const sectionNavLinks = $$('.banner-section-link[data-section-key]');
+const bidProjectsNavLink = document.querySelector('.banner-section-link[data-section-key="bidProjects"]');
 
 // State
 let countries = [];
@@ -67,6 +76,7 @@ let _dimRadarChart = null;
 let activeDimIndex = 'egdi';
 let govSelectedYears = {};
 let govChartView = 'comparison';
+let countryLoadRequestId = 0;
 let sectionCollapseState = {
   basic: false,
   connectivity: false,
@@ -75,6 +85,7 @@ let sectionCollapseState = {
   trust: false,
   guides: false,
   gov: false,
+  bidProjects: false,
 };
 let enablerDimensionCollapseState = {};
 
@@ -86,7 +97,17 @@ const COLLAPSIBLE_SECTION_IDS = {
   trust: 'trust-section',
   guides: 'digital-guides-section',
   gov: 'gov-section',
+  bidProjects: 'bid-projects-section',
 };
+
+const bidProjectsController = createBidProjectsController({
+  section: bidProjectsSection,
+  filtersEl: bidProjectsFilters,
+  summaryEl: bidProjectsSummary,
+  tableShellEl: bidProjectsTableShell,
+  linksEl: bidProjectsLinks,
+  navLink: bidProjectsNavLink,
+});
 
 const INCOME_LEVEL_TOOLTIP = 'Clasificaci\u00F3n del Banco Mundial seg\u00FAn el ingreso nacional bruto per c\u00E1pita del pa\u00EDs. Fuente: metadata oficial de pa\u00EDs del Banco Mundial.';
 
@@ -2256,6 +2277,7 @@ function showError(msg) {
 // â”€â”€â”€ Load country data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function loadCountry(iso) {
   if (!iso) return;
+  const requestId = ++countryLoadRequestId;
   selectedIso = iso;
 
   // Sync dropdown
@@ -2266,10 +2288,20 @@ async function loadCountry(iso) {
   highlightCountry(iso);
 
   showLoading();
+  bidProjectsController.setLoading({
+    iso3: iso,
+    isRegionAggregate: iso === REGION_AGGREGATE_ISO,
+  });
+
   try {
-    const res = await fetch(`/api/country/${iso}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const [data, bidProjectsResult] = await Promise.all([
+      fetchCountryData(iso),
+      fetchBidProjects(iso)
+        .then((payload) => ({ ok: true, payload }))
+        .catch((error) => ({ ok: false, error })),
+    ]);
+
+    if (requestId !== countryLoadRequestId) return;
 
     hideLoading();
     emptyState.classList.add('hidden');
@@ -2288,8 +2320,20 @@ async function loadCountry(iso) {
     } else {
       renderGovSection(data.govData, fixText(data.country.name), data.country.iso3, {});
     }
+
+    if (bidProjectsResult.ok) {
+      bidProjectsController.setData(bidProjectsResult.payload, data.country);
+    } else {
+      console.error(bidProjectsResult.error);
+      bidProjectsController.setError('No se pudieron cargar los proyectos BID.', data.country);
+    }
   } catch (err) {
+    if (requestId !== countryLoadRequestId) return;
     console.error(err);
+    bidProjectsController.setError('No se pudieron cargar los proyectos BID.', {
+      iso3: iso,
+      isRegionAggregate: iso === REGION_AGGREGATE_ISO,
+    });
     showError('No se pudieron obtener los datos. Int\u00E9ntalo de nuevo.');
   }
 }
