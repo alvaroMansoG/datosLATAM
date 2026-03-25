@@ -40,6 +40,8 @@ const mapRegionTrigger  = $('#map-region-trigger');
 const basicLinks        = $('#basic-links');
 const connectivityLinks = $('#connectivity-links');
 const findexLinks       = $('#findex-links');
+const digitalEnablersEl = $('#digital-enablers');
+const enablersSection   = $('#enablers-section');
 const basicMethodNote   = $('#basic-method-note');
 const connectivityMethodNote = $('#connectivity-method-note');
 const findexMethodNote  = $('#findex-method-note');
@@ -65,13 +67,16 @@ let sectionCollapseState = {
   basic: false,
   connectivity: false,
   findex: false,
+  enablers: false,
   gov: false,
 };
+let enablerDimensionCollapseState = {};
 
 const COLLAPSIBLE_SECTION_IDS = {
   basic: 'basic-section',
   connectivity: 'connectivity-section',
   findex: 'findex-section',
+  enablers: 'enablers-section',
   gov: 'gov-section',
 };
 
@@ -215,6 +220,24 @@ const INDICATOR_TOOLTIPS = {
 };
 
 INDICATOR_TOOLTIPS['SI.POV.GINI'] = 'Mide cu\u00E1nto se desv\u00EDa la distribuci\u00F3n del ingreso o del consumo de la igualdad perfecta. Un valor de 0 representa igualdad total y 100 desigualdad total. Para el agregado ALC se muestra un promedio simple de \u00EDndices nacionales; no equivale al Gini regional real.';
+
+const ENABLER_STATUS_META = {
+  yes: {
+    label: 'Sí',
+    className: 'status-yes',
+    tooltip: 'Disponible con evidencia',
+  },
+  no: {
+    label: 'No',
+    className: 'status-no',
+    tooltip: 'No identificado',
+  },
+  in_development: {
+    label: 'En desarrollo',
+    className: 'status-dev',
+    tooltip: 'En proceso de implementación',
+  },
+};
 
 const GOV_INDEX_META = {
   egdi: { org: 'NACIONES UNIDAS', name: 'Índice de Gobierno Digital (EGDI)', shortName: 'eGOV', scaleMax: 1, hasDimensions: true },
@@ -1073,6 +1096,93 @@ function createCompoundCard({ title, icon, metrics, country, showSources = true,
   return card;
 }
 
+function syncEnablerDimensionToggle(button, collapsed) {
+  if (!button) return;
+  button.setAttribute('aria-expanded', String(!collapsed));
+  const text = button.querySelector('.enabler-dimension-toggle-text');
+  const icon = button.querySelector('.enabler-dimension-toggle-icon');
+  if (text) text.textContent = collapsed ? 'Mostrar' : 'Ocultar';
+  if (icon) icon.textContent = collapsed ? '\u25BE' : '\u25B4';
+}
+
+function renderDigitalEnablers(data) {
+  if (!digitalEnablersEl || !enablersSection) return;
+
+  const isRegionAggregate = Boolean(data.country?.isRegionAggregate);
+  const navLink = document.querySelector('.banner-section-link[data-section-key="enablers"]');
+  if (isRegionAggregate || !data.digitalEnablers?.dimensions?.length) {
+    enablersSection.style.display = 'none';
+    if (navLink) navLink.classList.add('hidden');
+    return;
+  }
+
+  enablersSection.style.display = 'block';
+  if (navLink) navLink.classList.remove('hidden');
+
+  const dimensions = data.digitalEnablers.dimensions;
+  digitalEnablersEl.innerHTML = dimensions.map((dimension) => {
+    const collapsed = Boolean(enablerDimensionCollapseState[dimension.key]);
+    return `
+      <article class="enabler-dimension-card ${collapsed ? 'is-collapsed' : ''}" data-dimension-key="${dimension.key}">
+        <div class="enabler-dimension-header">
+          <button type="button" class="enabler-dimension-trigger" data-dimension-key="${dimension.key}" aria-expanded="${collapsed ? 'false' : 'true'}">
+            <span class="enabler-dimension-title-wrap">
+              <span class="enabler-dimension-title">${fixText(dimension.title)}</span>
+              <span class="enabler-dimension-count" title="${dimension.count} habilitadores">${dimension.count}</span>
+            </span>
+            <span class="enabler-dimension-toggle">
+              <span class="enabler-dimension-toggle-text">${collapsed ? 'Mostrar' : 'Ocultar'}</span>
+              <span class="enabler-dimension-toggle-icon" aria-hidden="true">${collapsed ? '\u25BE' : '\u25B4'}</span>
+            </span>
+          </button>
+        </div>
+        <div class="enabler-dimension-body">
+            <div class="enabler-table">
+              <div class="enabler-table-head">
+                <span>Habilitador</span>
+                <span>Estado</span>
+                <span>Enlace</span>
+              </div>
+            ${dimension.enablers.map((enabler) => {
+              const meta = ENABLER_STATUS_META[enabler.status] || ENABLER_STATUS_META.no;
+              const evidenceHtml = enabler.status === 'yes' && enabler.evidenceUrl
+                ? `<a class="enabler-link-inline" href="${escapeHtmlAttr(enabler.evidenceUrl)}" title="Abrir evidencia" aria-label="Abrir evidencia" target="_blank" rel="noopener noreferrer">↗ Ver</a>`
+                : '<span class="enabler-link-empty">—</span>';
+              return `
+                <div class="enabler-row">
+                  <div class="enabler-name-cell">
+                    <span class="enabler-name">${fixText(enabler.name)}</span>
+                    <span class="info-tooltip-trigger" tabindex="0" aria-label="Ver descripción" data-tooltip="${escapeHtmlAttr(fixText(enabler.description))}">ℹ️</span>
+                  </div>
+                  <div class="enabler-status-cell">
+                    <span class="enabler-status-badge ${meta.className}" title="${escapeHtmlAttr(meta.tooltip)}">${meta.label}</span>
+                  </div>
+                  <div class="enabler-link-cell">${evidenceHtml}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  digitalEnablersEl.querySelectorAll('.enabler-dimension-trigger').forEach((button) => {
+    button.addEventListener('click', () => {
+      const key = button.dataset.dimensionKey;
+      if (!key) return;
+      enablerDimensionCollapseState[key] = !enablerDimensionCollapseState[key];
+      const card = digitalEnablersEl.querySelector(`.enabler-dimension-card[data-dimension-key="${key}"]`);
+      if (card) {
+        const collapsed = Boolean(enablerDimensionCollapseState[key]);
+        card.classList.toggle('is-collapsed', collapsed);
+        syncEnablerDimensionToggle(button, collapsed);
+      }
+    });
+    syncEnablerDimensionToggle(button, Boolean(enablerDimensionCollapseState[button.dataset.dimensionKey]));
+  });
+}
+
 // â”€â”€â”€ Render indicators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // â”€â”€â”€ Render indicators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderIndicators(data) {
@@ -1172,6 +1282,8 @@ function renderIndicators(data) {
       <a href="https://data360.worldbank.org/en/dataset/UNESCO_UIS${suffix}" target="_blank" rel="noopener noreferrer">UNESCO via Banco Mundial</a>
     `;
   }
+
+  renderDigitalEnablers(data);
 }
 
 // â”€â”€â”€ Radar chart instance (shared) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

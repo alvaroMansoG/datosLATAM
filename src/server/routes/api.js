@@ -9,6 +9,7 @@ const {
   REGION_ISO_CODES,
 } = require('../data/countries');
 const { GOV_DATA, ALC_GOV_STATS } = require('../data/govStatic');
+const { buildCountryDigitalEnablers } = require('../data/digitalEnablers');
 const { buildRegionalAggregateIndicators } = require('../domain/aggregates');
 const { buildIndicatorRanking } = require('../domain/rankings');
 const { buildCountryGovData, buildRegionalGovData } = require('../domain/govSeries');
@@ -161,6 +162,7 @@ function buildApiRouter() {
       };
 
       data.govData = buildCountryGovData(iso);
+      data.digitalEnablers = buildCountryDigitalEnablers(iso);
 
       responseCache.set(iso, data);
       res.json(data);
